@@ -40,9 +40,9 @@ public class LocalCEP {
 
             queryList.add("from Rule1Stream select * insert into Rule1Table; ");
             queryList.add("from "+apiName+"InStream [not (Rule1Table.ip == API1InStream.ip in Rule1Table)] select " +
-                    "API1InStream.ip, false as isThrottled insert into Rule1ResultStream; ");
+                    "API1InStream.ip, false as isThrottled insert into " + apiName + "Rule1ResultStream; ");
             queryList.add("from "+apiName+"InStream join Rule1Table on Rule1Table.ip == API1InStream.ip select " +
-                    "API1InStream.ip, Rule1Table.isThrottled insert into Rule1ResultStream; ");
+                    "API1InStream.ip, Rule1Table.isThrottled insert into " + apiName + "Rule1ResultStream; ");
 
         } else {
             definitionList.add("define stream GlobalInStream (ip string, maxCount int); ");
@@ -51,9 +51,9 @@ public class LocalCEP {
 
             queryList.add("from Rule2Stream select * insert into Rule2Table; ");
             queryList.add("from GlobalInStream[not (Rule2Table.ip == ip in Rule2Table)] select " +
-                    "GlobalInStream.ip, false as isThrottled insert into Rule2ResultStream; ");
+                    "GlobalInStream.ip, false as isThrottled insert into GlobalRule2ResultStream; ");
             queryList.add("from GlobalInStream join Rule2Table on Rule2Table.ip == GlobalInStream.ip select " +
-                    "GlobalInStream.ip, Rule2Table.isThrottled insert into Rule2ResultStream; ");
+                    "GlobalInStream.ip, Rule2Table.isThrottled insert into GlobalRule2ResultStream; ");
         }
     }
 

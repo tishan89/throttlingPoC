@@ -19,14 +19,15 @@ package org.wso2.carbon.cep;
 
 
 import org.apache.log4j.Logger;
-import org.wso2.siddhi.core.ExecutionPlanRuntime;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.siddhi.core.util.EventPrinter;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 public class ThrottlingManager {
@@ -39,32 +40,60 @@ public class ThrottlingManager {
     //Rule1 = 10 request per each user for duration of 5 min regardless of API
     //Rule2 = 5 req per each user for duration of 5min for API1
 
-    private static List<LocalCEP> localCEPList = new ArrayList<LocalCEP>();
+    private static LocalCEP localCEP = new LocalCEP();
     private static RemoteCEP remoteCEP = new RemoteCEP();
-    private static List<ExecutionPlanRuntime> localRuntimes = new ArrayList<ExecutionPlanRuntime>();
+    private static int maxCount = 5;
+    private static Boolean isThrottled = false;
+    private static Map<String, List<ThrottlingType>> APIThrottlingTypeMap = new HashMap<String, List<ThrottlingType>>();
 
     private ThrottlingManager() {
         //initialization stopped
     }
 
-    public static void addLocalCEP(int number) {
-        for (int i = 0; i < number; i++) {
-            localCEPList.add(new LocalCEP());
+    /**
+     * Method to check whether a request is throttled synchronously
+     *
+     * @param request API request
+     */
+    public synchronized void isThrottled(Request request) {
+
+        if (!isThrottled) {
+            String APIName = request.getAPIName();
+            InputHandler localPerAPIHandler = localCEP.getExecutionPlanRuntime().getInputHandler(APIName + "InStream");
+            InputHandler localGlobalHandler = localCEP.getExecutionPlanRuntime().getInputHandler("GlobalInStream");
+            InputHandler remotePerAPIHandler = remoteCEP.getExecutionPlanRuntime().getInputHandler(APIName + "InStream");
+            InputHandler remoteGlobalHandler = localCEP.getExecutionPlanRuntime().getInputHandler("GlobalInStream");
+
+            try {
+                localPerAPIHandler.send(new Object[]{request.getIP(), maxCount});
+                localGlobalHandler.send(new Object[]{request.getIP(), maxCount});
+                remotePerAPIHandler.send(new Object[]{request.getIP(), maxCount});
+                remoteGlobalHandler.send(new Object[]{request.getIP(), maxCount});
+            } catch (InterruptedException e) {
+                log.error("Error sending events to Siddhi " + e.getMessage(), e);
+            }
+
+            localCEP.getExecutionPlanRuntime();//todo
         }
+
+
     }
 
     public static void addThrottling(ThrottlingType type, Properties propertyList) {
-        for (LocalCEP localCEP : localCEPList) {
-            localCEP.addThrottlingType(type, propertyList);
-        }
+        localCEP.addThrottlingType(type, propertyList);
         remoteCEP.addThrottlingType(type, propertyList);
+        if (APIThrottlingTypeMap.containsKey(propertyList.getProperty("name"))) {
+            APIThrottlingTypeMap.get(propertyList.getProperty("name")).add(type);
+        } else {
+            List<ThrottlingType> throttlingTypeList = new ArrayList<ThrottlingType>();
+            throttlingTypeList.add(type);
+            APIThrottlingTypeMap.put(propertyList.getProperty("name"), throttlingTypeList);
+        }
     }
 
     public static void init() {
-        for (LocalCEP localCEP : localCEPList) {
-            localCEP.init();
-            localRuntimes.add(localCEP.getExecutionPlanRuntime());
-        }
+
+        localCEP.init();
         remoteCEP.init();
 
         //Wiring remote node's output to local CEP
@@ -73,22 +102,23 @@ public class ThrottlingManager {
             public void receive(Event[] events) {
                 EventPrinter.print(events);
                 for (Event event : events) {
-                    String throttlingContext = (String) event.getData(2);
-                    for (ExecutionPlanRuntime runtime : localRuntimes) {
-                        InputHandler inputHandler = runtime.getInputHandler(throttlingContext + "InStream");
-                        try {
-                            inputHandler.send(event);
-                        } catch (InterruptedException e) {
-                            log.error("Event sending failed", e);
-                        }
+                    String throttlingRule = (String) event.getData(2);
+
+                    InputHandler inputHandler = localCEP.getExecutionPlanRuntime().getInputHandler(throttlingRule + "InStream");
+                    try {
+                        inputHandler.send(event);
+                    } catch (InterruptedException e) {
+                        log.error("Event sending failed", e);
                     }
                 }
             }
         });
+
+
     }
 
-    public static List<LocalCEP> getLocalCEPList() {
-        return localCEPList;
+    public static LocalCEP getLocalCEP() {
+        return localCEP;
     }
 
     public static RemoteCEP getRemoteCEP() {

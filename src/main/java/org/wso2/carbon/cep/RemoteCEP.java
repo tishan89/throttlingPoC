@@ -31,15 +31,16 @@ public class RemoteCEP {
     private List<String> definitionList = new ArrayList<String>();
 
     protected void addThrottlingType(ThrottlingManager.ThrottlingType type, Properties propertyList) {
+
         if (type == ThrottlingManager.ThrottlingType.Rule1) {
             String apiName = propertyList.getProperty("name");
             definitionList.add("define stream " + apiName + "InStream (ip string, maxCount int); ");
 
             queryList.add("@info(name = 'remoteQuery1')\n" +
-                    "partition with (ip of inputStream)\n" +
+                    "partition with (ip of " + apiName + "InStream)\n" +
                     "begin \n" +
                     "\n" +
-                    "from API1InStream#window.time(5000) \n" +
+                    "from " + apiName + "InStream#window.time(5000) \n" +
                     "select ip , (count(ip) >= maxCount) as isThrottled \n" +
                     "insert all events into #outputStream;\n" +
                     "\n" +
@@ -54,9 +55,8 @@ public class RemoteCEP {
 
         } else {
             definitionList.add("define stream GlobalInStream (ip string, maxCount int); ");
-
             queryList.add("@info(name = 'remoteQuery2')\n" +
-                    "partition with (ip of inputStream)\n" +
+                    "partition with (ip of GlobalInStream)\n" +
                     "begin \n" +
                     "\n" +
                     "from GlobalInStream#window.time(5000) \n" +
