@@ -29,6 +29,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ThrottlingManager {
 
@@ -46,36 +48,44 @@ public class ThrottlingManager {
     private static Boolean isThrottled = false;
     private static Map<String, List<ThrottlingType>> APIThrottlingTypeMap = new HashMap<String, List<ThrottlingType>>();
 
+    private static Map<String, ResultContainer> resultMap = new ConcurrentHashMap<String, ResultContainer>();
+
     private ThrottlingManager() {
         //initialization stopped
     }
 
     /**
-     * Method to check whether a request is throttled synchronously
+     * Method to check whether a request is throttled synchronously.
+     * Yet to optimize
      *
      * @param request API request
      */
-    public synchronized void isThrottled(Request request) {
+    public static synchronized Boolean isThrottled(Request request) {
 
-        if (!isThrottled) {
-            String APIName = request.getAPIName();
-            InputHandler localPerAPIHandler = localCEP.getExecutionPlanRuntime().getInputHandler(APIName + "InStream");
-            InputHandler localGlobalHandler = localCEP.getExecutionPlanRuntime().getInputHandler("GlobalInStream");
+        String APIName = request.getAPIName();
+        InputHandler localPerAPIHandler = localCEP.getExecutionPlanRuntime().getInputHandler(APIName + "InStream");
+        InputHandler localGlobalHandler = localCEP.getExecutionPlanRuntime().getInputHandler("GlobalInStream");
+        UUID uniqueKey = UUID.randomUUID();
+        ResultContainer result = new ResultContainer(APIThrottlingTypeMap.get(APIName).size());
+        resultMap.put(uniqueKey.toString(), result);
+        try {
+            localPerAPIHandler.send(new Object[]{uniqueKey.toString(), request.getIP(), maxCount});
+            localGlobalHandler.send(new Object[]{uniqueKey.toString(), request.getIP(), maxCount});
+        } catch (InterruptedException e) {
+            log.error("Error sending events to Siddhi " + e.getMessage(), e);
+        }
+        if (!result.isThrottled()) {
             InputHandler remotePerAPIHandler = remoteCEP.getExecutionPlanRuntime().getInputHandler(APIName + "InStream");
-            InputHandler remoteGlobalHandler = localCEP.getExecutionPlanRuntime().getInputHandler("GlobalInStream");
-
+            InputHandler remoteGlobalHandler = remoteCEP.getExecutionPlanRuntime().getInputHandler("GlobalInStream");
             try {
-                localPerAPIHandler.send(new Object[]{request.getIP(), maxCount});
-                localGlobalHandler.send(new Object[]{request.getIP(), maxCount});
                 remotePerAPIHandler.send(new Object[]{request.getIP(), maxCount});
                 remoteGlobalHandler.send(new Object[]{request.getIP(), maxCount});
             } catch (InterruptedException e) {
                 log.error("Error sending events to Siddhi " + e.getMessage(), e);
             }
-
-            localCEP.getExecutionPlanRuntime();//todo
         }
-
+        resultMap.remove(uniqueKey);
+        return result.isThrottled();
 
     }
 

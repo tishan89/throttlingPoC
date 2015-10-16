@@ -34,26 +34,28 @@ public class LocalCEP {
     protected void addThrottlingType(ThrottlingManager.ThrottlingType type, Properties propertyList) {
         if (type == ThrottlingManager.ThrottlingType.Rule1) {
             String apiName = propertyList.getProperty("name");
-            definitionList.add("define stream "+apiName+"InStream (ip string, maxCount int); ");
+            definitionList.add("define stream " + apiName + "InStream (messageID string, ip string, maxCount int); ");
             definitionList.add("define stream Rule1Stream (ip string, isThrottled bool, throttlingContext string); ");
             definitionList.add("@IndexedBy('ip') define table Rule1Table (ip string, isThrottled bool); ");
 
             queryList.add("from Rule1Stream select * insert into Rule1Table; ");
             queryList.add("from "+apiName+"InStream [not (Rule1Table.ip == API1InStream.ip in Rule1Table)] select " +
-                    "API1InStream.ip, false as isThrottled insert into " + apiName + "Rule1ResultStream; ");
+                    "messageID, ip, false as isThrottled insert into " + apiName + "Rule1ResultStream; ");
             queryList.add("from "+apiName+"InStream join Rule1Table on Rule1Table.ip == API1InStream.ip select " +
-                    "API1InStream.ip, Rule1Table.isThrottled insert into " + apiName + "Rule1ResultStream; ");
+                    "API1InStream.messageID, API1InStream.ip, Rule1Table.isThrottled insert into " + apiName +
+                    "Rule1ResultStream; ");
 
         } else {
-            definitionList.add("define stream GlobalInStream (ip string, maxCount int); ");
+            definitionList.add("define stream GlobalInStream (messageID string, ip string, maxCount int); ");
             definitionList.add("define stream Rule2Stream (ip string, isThrottled bool, throttlingContext string); ");
             definitionList.add("@IndexedBy('ip') define table Rule2Table (ip string, isThrottled bool); ");
 
             queryList.add("from Rule2Stream select * insert into Rule2Table; ");
             queryList.add("from GlobalInStream[not (Rule2Table.ip == ip in Rule2Table)] select " +
-                    "GlobalInStream.ip, false as isThrottled insert into GlobalRule2ResultStream; ");
+                    "messageID, ip, false as isThrottled insert into GlobalRule2ResultStream; ");
             queryList.add("from GlobalInStream join Rule2Table on Rule2Table.ip == GlobalInStream.ip select " +
-                    "GlobalInStream.ip, Rule2Table.isThrottled insert into GlobalRule2ResultStream; ");
+                    "GlobalInStream.messageID , GlobalInStream.ip, Rule2Table.isThrottled insert into " +
+                    "GlobalRule2ResultStream; ");
         }
     }
 
