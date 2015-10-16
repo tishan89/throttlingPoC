@@ -19,6 +19,7 @@ package org.wso2.carbon.cep;
 
 
 import org.apache.log4j.Logger;
+import org.wso2.siddhi.core.ExecutionPlanRuntime;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
@@ -63,23 +64,21 @@ public class ThrottlingManager {
     public static synchronized Boolean isThrottled(Request request) {
 
         String APIName = request.getAPIName();
-        InputHandler localPerAPIHandler = localCEP.getExecutionPlanRuntime().getInputHandler(APIName + "InStream");
-        InputHandler localGlobalHandler = localCEP.getExecutionPlanRuntime().getInputHandler("GlobalInStream");
+        ExecutionPlanRuntime localRuntime = localCEP.getExecutionPlanRuntime();
         UUID uniqueKey = UUID.randomUUID();
         ResultContainer result = new ResultContainer(APIThrottlingTypeMap.get(APIName).size());
         resultMap.put(uniqueKey.toString(), result);
         try {
-            localPerAPIHandler.send(new Object[]{uniqueKey.toString(), request.getIP(), maxCount});
-            localGlobalHandler.send(new Object[]{uniqueKey.toString(), request.getIP(), maxCount});
+            for (ThrottlingType type : APIThrottlingTypeMap.get(APIName)) {
+                localRuntime.getInputHandler(type.name() + "EvalStream").send(new Object[]{uniqueKey.toString(), request.getIP(), maxCount});
+            }
         } catch (InterruptedException e) {
             log.error("Error sending events to Siddhi " + e.getMessage(), e);
         }
         if (!result.isThrottled()) {
             InputHandler remotePerAPIHandler = remoteCEP.getExecutionPlanRuntime().getInputHandler(APIName + "InStream");
-            InputHandler remoteGlobalHandler = remoteCEP.getExecutionPlanRuntime().getInputHandler("GlobalInStream");
             try {
                 remotePerAPIHandler.send(new Object[]{request.getIP(), maxCount});
-                remoteGlobalHandler.send(new Object[]{request.getIP(), maxCount});
             } catch (InterruptedException e) {
                 log.error("Error sending events to Siddhi " + e.getMessage(), e);
             }
@@ -90,7 +89,7 @@ public class ThrottlingManager {
     }
 
     public static void addThrottling(ThrottlingType type, Properties propertyList) {
-        localCEP.addThrottlingType(type, propertyList);
+        //localCEP.addThrottlingType(type, propertyList);
         remoteCEP.addThrottlingType(type, propertyList);
         if (APIThrottlingTypeMap.containsKey(propertyList.getProperty("name"))) {
             APIThrottlingTypeMap.get(propertyList.getProperty("name")).add(type);
@@ -116,10 +115,19 @@ public class ThrottlingManager {
 
                     InputHandler inputHandler = localCEP.getExecutionPlanRuntime().getInputHandler(throttlingRule + "InStream");
                     try {
-                        inputHandler.send(event);
+                        inputHandler.send(new Object[]{event.getData(0), event.getData(1)});
                     } catch (InterruptedException e) {
                         log.error("Event sending failed", e);
                     }
+                }
+            }
+        });
+
+        localCEP.getExecutionPlanRuntime().addCallback("LocalResultStream", new StreamCallback() {
+            @Override
+            public void receive(Event[] events) {
+                for (Event event : events) {
+                    resultMap.get(event.getData(0)).addResult((Boolean) event.getData(2));
                 }
             }
         });

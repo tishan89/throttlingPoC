@@ -29,12 +29,15 @@ public class RemoteCEP {
     private ExecutionPlanRuntime executionPlanRuntime;
     private List<String> queryList = new ArrayList<String>();
     private List<String> definitionList = new ArrayList<String>();
+    private List<String> APINameList = new ArrayList<String>();
 
     protected void addThrottlingType(ThrottlingManager.ThrottlingType type, Properties propertyList) {
-
-        if (type == ThrottlingManager.ThrottlingType.Rule1) {
-            String apiName = propertyList.getProperty("name");
+        String apiName = propertyList.getProperty("name");
+        if (!APINameList.contains(apiName)) {
             definitionList.add("define stream " + apiName + "InStream (ip string, maxCount int); ");
+            APINameList.add(apiName);
+        }
+        if (type == ThrottlingManager.ThrottlingType.Rule1) {
 
             queryList.add("@info(name = 'remoteQuery1')\n" +
                     "partition with (ip of " + apiName + "InStream)\n" +
@@ -54,27 +57,29 @@ public class RemoteCEP {
                     "end;");
 
         } else {
-            definitionList.add("define stream GlobalInStream (ip string, maxCount int); ");
-            queryList.add("@info(name = 'remoteQuery2')\n" +
-                    "partition with (ip of GlobalInStream)\n" +
-                    "begin \n" +
-                    "\n" +
-                    "from GlobalInStream#window.time(5000) \n" +
-                    "select ip , (count(ip) >= maxCount) as isThrottled \n" +
-                    "insert all events into #outputStream;\n" +
-                    "\n" +
-                    "from every e1=#outputStream, e2=#outputStream[(e1.isThrottled != e2.isThrottled)] \n" +
-                    "select e1.ip, e2.isThrottled, 'Rule2' as throttlingLevel insert into remoteOutStream;\n" +
-                    "\n" +
-                    "from e1=#outputStream \n" +
-                    "select e1.ip, e1.isThrottled, 'Rule2' as throttlingLevel\n" +
-                    "insert into remoteOutStream;\n" +
-                    "\n" +
-                    "end; ");
+            //definitionList.add("define stream GlobalInStream (ip string, maxCount int); ");
+            queryList.add("from " + apiName + "InStream select * insert into GlobalInStream;");
         }
     }
 
     public void init() {
+        definitionList.add("define stream GlobalInStream (ip string, maxCount int); ");
+        queryList.add("@info(name = 'remoteQuery2')\n" +
+                "partition with (ip of GlobalInStream)\n" +
+                "begin \n" +
+                "\n" +
+                "from GlobalInStream#window.time(5000) \n" +
+                "select ip , (count(ip) >= maxCount) as isThrottled \n" +
+                "insert all events into #outputStream;\n" +
+                "\n" +
+                "from every e1=#outputStream, e2=#outputStream[(e1.isThrottled != e2.isThrottled)] \n" +
+                "select e1.ip, e2.isThrottled, 'Rule2' as throttlingLevel insert into remoteOutStream;\n" +
+                "\n" +
+                "from e1=#outputStream \n" +
+                "select e1.ip, e1.isThrottled, 'Rule2' as throttlingLevel\n" +
+                "insert into remoteOutStream;\n" +
+                "\n" +
+                "end; ");
         String fullQuery = constructFullQuery();
         executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(fullQuery);
 
