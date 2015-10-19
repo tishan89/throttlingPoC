@@ -82,7 +82,7 @@ public class RemoteCEP {
                 "end; ");
         String fullQuery = constructFullQuery();
         executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(fullQuery);
-
+        executionPlanRuntime.start();
     }
 
     public ExecutionPlanRuntime getExecutionPlanRuntime() {

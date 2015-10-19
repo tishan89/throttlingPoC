@@ -30,7 +30,7 @@ public class ResultContainer {
     private List<Boolean> results;
 
     public ResultContainer(int size) {
-        semaphore = new Semaphore(-1 * size - 1);
+        semaphore = new Semaphore(-1 * size + 1);
         results = Collections.synchronizedList(new ArrayList<Boolean>(size));
     }
 

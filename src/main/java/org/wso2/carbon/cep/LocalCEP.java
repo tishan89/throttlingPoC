@@ -82,6 +82,7 @@ public class LocalCEP {
                 "LocalResultStream; ");
         String fullQuery = constructFullQuery();
         executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(fullQuery);
+        executionPlanRuntime.start();
 
     }
 

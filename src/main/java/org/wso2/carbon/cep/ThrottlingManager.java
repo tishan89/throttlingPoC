@@ -40,13 +40,12 @@ public class ThrottlingManager {
     public enum ThrottlingType {
         Rule1, Rule2
     }
-    //Rule1 = 10 request per each user for duration of 5 min regardless of API
-    //Rule2 = 5 req per each user for duration of 5min for API1
+    //Rule2 = 10 request per each user for duration of 5 min regardless of API
+    //Rule1 = 5 req per each user for duration of 5min for API1
 
     private static LocalCEP localCEP = new LocalCEP();
     private static RemoteCEP remoteCEP = new RemoteCEP();
     private static int maxCount = 5;
-    private static Boolean isThrottled = false;
     private static Map<String, List<ThrottlingType>> APIThrottlingTypeMap = new HashMap<String, List<ThrottlingType>>();
 
     private static Map<String, ResultContainer> resultMap = new ConcurrentHashMap<String, ResultContainer>();
@@ -75,7 +74,8 @@ public class ThrottlingManager {
         } catch (InterruptedException e) {
             log.error("Error sending events to Siddhi " + e.getMessage(), e);
         }
-        if (!result.isThrottled()) {
+        Boolean isThrottled = result.isThrottled();
+        if (!isThrottled) {
             InputHandler remotePerAPIHandler = remoteCEP.getExecutionPlanRuntime().getInputHandler(APIName + "InStream");
             try {
                 remotePerAPIHandler.send(new Object[]{request.getIP(), maxCount});
@@ -84,7 +84,7 @@ public class ThrottlingManager {
             }
         }
         resultMap.remove(uniqueKey);
-        return result.isThrottled();
+        return isThrottled;
 
     }
 

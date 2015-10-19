@@ -39,4 +39,26 @@ public class testCEP {
         result.addResult(true);
         result.addResult(false);
     }
+
+    @Test
+    public void testEndToEnd() throws InterruptedException {
+        Properties API1Properties = new Properties();
+        API1Properties.put("name", "API1");
+        Properties API2Properties = new Properties();
+        API2Properties.put("name", "API2");
+        ThrottlingManager.addThrottling(ThrottlingManager.ThrottlingType.Rule1, API1Properties);
+        ThrottlingManager.addThrottling(ThrottlingManager.ThrottlingType.Rule2, API1Properties);
+        ThrottlingManager.addThrottling(ThrottlingManager.ThrottlingType.Rule2, API2Properties);
+
+        ThrottlingManager.init();
+
+        ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
+        ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
+        ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
+        ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
+        ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
+        Thread.sleep(1000);
+        Boolean result = ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
+        System.out.println(result);
+    }
 }
