@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Properties;
 
 public class RemoteCEP {
-    private SiddhiManager siddhiManager = new SiddhiManager();
+    private SiddhiManager siddhiManager;
     private ExecutionPlanRuntime executionPlanRuntime;
     private List<String> queryList = new ArrayList<String>();
     private List<String> definitionList = new ArrayList<String>();
@@ -39,7 +39,7 @@ public class RemoteCEP {
         }
         if (type == ThrottlingManager.ThrottlingType.Rule1) {
 
-            queryList.add("@info(name = 'remoteQuery1')\n" +
+            queryList.add("@info(name = 'remoteQuery" + apiName + "')\n" +
                     "partition with (ip of " + apiName + "InStream)\n" +
                     "begin \n" +
                     "\n" +
@@ -81,6 +81,8 @@ public class RemoteCEP {
                 "\n" +
                 "end; ");
         String fullQuery = constructFullQuery();
+
+        siddhiManager = new SiddhiManager();
         executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(fullQuery);
         executionPlanRuntime.start();
     }
@@ -99,5 +101,15 @@ public class RemoteCEP {
         }
 
         return stringBuilder.toString();
+    }
+
+    /**
+     * Clean up method
+     */
+    public void shutdown() {
+        siddhiManager.shutdown();
+        queryList = new ArrayList<String>();
+        definitionList = new ArrayList<String>();
+        APINameList = new ArrayList<String>();
     }
 }

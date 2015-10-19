@@ -101,7 +101,6 @@ public class ThrottlingManager {
     }
 
     public static void init() {
-
         localCEP.init();
         remoteCEP.init();
 
@@ -132,6 +131,12 @@ public class ThrottlingManager {
             }
         });
 
+
+    }
+
+    public static void shutdown() {
+        localCEP.shutdown();
+        remoteCEP.shutdown();
 
     }
 

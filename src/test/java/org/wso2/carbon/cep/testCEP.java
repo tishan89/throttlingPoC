@@ -46,6 +46,7 @@ public class testCEP {
         API1Properties.put("name", "API1");
         Properties API2Properties = new Properties();
         API2Properties.put("name", "API2");
+        //ThrottlingManager throttlingManager = new ThrottlingManager();
         ThrottlingManager.addThrottling(ThrottlingManager.ThrottlingType.Rule1, API1Properties);
         ThrottlingManager.addThrottling(ThrottlingManager.ThrottlingType.Rule2, API1Properties);
         ThrottlingManager.addThrottling(ThrottlingManager.ThrottlingType.Rule2, API2Properties);
@@ -60,6 +61,7 @@ public class testCEP {
         Thread.sleep(100);
         Assert.assertTrue("Assert the throttling result", ThrottlingManager.isThrottled(new Request("API1",
                 "10.100.5.99")));
+        ThrottlingManager.shutdown();
     }
 
     @Test
@@ -68,6 +70,7 @@ public class testCEP {
         API1Properties.put("name", "API1");
         Properties API2Properties = new Properties();
         API2Properties.put("name", "API2");
+        //ThrottlingManager throttlingManager = new ThrottlingManager();
         ThrottlingManager.addThrottling(ThrottlingManager.ThrottlingType.Rule1, API1Properties);
         ThrottlingManager.addThrottling(ThrottlingManager.ThrottlingType.Rule2, API1Properties);
         ThrottlingManager.addThrottling(ThrottlingManager.ThrottlingType.Rule2, API2Properties);
@@ -84,5 +87,6 @@ public class testCEP {
                 "10.100.5.99")));
         Assert.assertFalse("Assert the throttling result", ThrottlingManager.isThrottled(new Request("API1",
                 "10.100.5.100")));
+        ThrottlingManager.shutdown();
     }
 }
