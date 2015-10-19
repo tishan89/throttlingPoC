@@ -41,7 +41,7 @@ public class testCEP {
     }
 
     @Test
-    public void testEndToEnd() throws InterruptedException {
+    public void testRule1() throws InterruptedException {
         Properties API1Properties = new Properties();
         API1Properties.put("name", "API1");
         Properties API2Properties = new Properties();
@@ -57,8 +57,32 @@ public class testCEP {
         ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
         ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
         ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
-        Thread.sleep(1000);
-        Boolean result = ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
-        System.out.println(result);
+        Thread.sleep(100);
+        Assert.assertTrue("Assert the throttling result", ThrottlingManager.isThrottled(new Request("API1",
+                "10.100.5.99")));
+    }
+
+    @Test
+    public void testRule2() throws InterruptedException {
+        Properties API1Properties = new Properties();
+        API1Properties.put("name", "API1");
+        Properties API2Properties = new Properties();
+        API2Properties.put("name", "API2");
+        ThrottlingManager.addThrottling(ThrottlingManager.ThrottlingType.Rule1, API1Properties);
+        ThrottlingManager.addThrottling(ThrottlingManager.ThrottlingType.Rule2, API1Properties);
+        ThrottlingManager.addThrottling(ThrottlingManager.ThrottlingType.Rule2, API2Properties);
+
+        ThrottlingManager.init();
+
+        ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
+        ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
+        ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
+        ThrottlingManager.isThrottled(new Request("API1", "10.100.5.99"));
+        ThrottlingManager.isThrottled(new Request("API2", "10.100.5.99"));
+        Thread.sleep(100);
+        Assert.assertTrue("Assert the throttling result", ThrottlingManager.isThrottled(new Request("API2",
+                "10.100.5.99")));
+        Assert.assertFalse("Assert the throttling result", ThrottlingManager.isThrottled(new Request("API1",
+                "10.100.5.100")));
     }
 }
