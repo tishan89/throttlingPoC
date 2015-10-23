@@ -4,7 +4,6 @@ import org.apache.log4j.Logger;
 import org.wso2.siddhi.core.ExecutionPlanRuntime;
 import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
-import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.siddhi.core.util.EventPrinter;
 
@@ -48,12 +47,12 @@ public class Throttler {
                 for (Event event : events) {
                     String throttlingRule = (String) event.getData(2);
 
-                    InputHandler inputHandler = localCEP.getExecutionPlanRuntime().getInputHandler(throttlingRule + "InStream");
-                    try {
-                        inputHandler.send(new Object[]{event.getData(0), event.getData(1)});
-                    } catch (InterruptedException e) {
-                        log.error("Event sending failed", e);
-                    }
+//                    InputHandler inputHandler = localCEP.getExecutionPlanRuntime().getInputHandler(throttlingRule + "InStream");
+//                    try {
+//                        inputHandler.send(new Object[]{event.getData(0), event.getData(1)});
+//                    } catch (InterruptedException e) {
+//                        log.error("Event sending failed", e);
+//                    }
                 }
             }
         });
