@@ -14,7 +14,7 @@
  * KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations
  * under the License.
- */
+*/
 package org.wso2.carbon.cep;
 
 import org.wso2.siddhi.core.ExecutionPlanRuntime;
@@ -25,21 +25,21 @@ import java.util.List;
 import java.util.Properties;
 
 public class RemoteCEP {
-    private SiddhiManager siddhiManager;
+    private SiddhiManager siddhiManager = new SiddhiManager();
     private ExecutionPlanRuntime executionPlanRuntime;
     private List<String> queryList = new ArrayList<String>();
     private List<String> definitionList = new ArrayList<String>();
-    private List<String> APINameList = new ArrayList<String>();
+    private List<String> apiNameList = new ArrayList<String>();
 
-    protected void addThrottlingType(ThrottlingManager.ThrottlingType type, Properties propertyList) {
-        String apiName = propertyList.getProperty("name");
-        if (!APINameList.contains(apiName)) {
+    protected void buildQueryList(ThrottlingManager.ThrottlingRule rule, Properties apiProperties) {
+        String apiName = apiProperties.getProperty("name");
+        if (!apiNameList.contains(apiName)) {
             definitionList.add("define stream " + apiName + "InStream (ip string, maxCount int); ");
-            APINameList.add(apiName);
+            apiNameList.add(apiName);
         }
-        if (type == ThrottlingManager.ThrottlingType.Rule1) {
+        if (rule == ThrottlingManager.ThrottlingRule.Rule1) {
 
-            queryList.add("@info(name = 'remoteQuery" + apiName + "')\n" +
+            queryList.add("@info(name = 'remoteQuery1')\n" +
                     "partition with (ip of " + apiName + "InStream)\n" +
                     "begin \n" +
                     "\n" +
@@ -81,8 +81,6 @@ public class RemoteCEP {
                 "\n" +
                 "end; ");
         String fullQuery = constructFullQuery();
-
-        siddhiManager = new SiddhiManager();
         executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(fullQuery);
         executionPlanRuntime.start();
     }
@@ -101,15 +99,5 @@ public class RemoteCEP {
         }
 
         return stringBuilder.toString();
-    }
-
-    /**
-     * Clean up method
-     */
-    public void shutdown() {
-        siddhiManager.shutdown();
-        queryList = new ArrayList<String>();
-        definitionList = new ArrayList<String>();
-        APINameList = new ArrayList<String>();
     }
 }

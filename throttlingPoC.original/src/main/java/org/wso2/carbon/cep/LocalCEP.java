@@ -26,13 +26,13 @@ import java.util.Properties;
 
 public class LocalCEP {
 
-    private SiddhiManager siddhiManager;
+    private SiddhiManager siddhiManager = new SiddhiManager();
     private ExecutionPlanRuntime executionPlanRuntime;
     private List<String> queryList = new ArrayList<String>();
     private List<String> definitionList = new ArrayList<String>();
 
-    protected void addThrottlingType(ThrottlingManager.ThrottlingType type, Properties propertyList) {
-        if (type == ThrottlingManager.ThrottlingType.Rule1) {
+    protected void addThrottlingType(ThrottlingManager.ThrottlingRule rule, Properties propertyList) {
+        if (rule == ThrottlingManager.ThrottlingRule.Rule1) {
             String apiName = propertyList.getProperty("name");
             definitionList.add("define stream Rule1EvalStream (messageID string, ip string, maxCount int); ");
             definitionList.add("define stream Rule1Stream (ip string, isThrottled bool); ");
@@ -81,8 +81,6 @@ public class LocalCEP {
                 "Rule2EvalStream.messageID , Rule2EvalStream.ip, Rule2Table.isThrottled insert into " +
                 "LocalResultStream; ");
         String fullQuery = constructFullQuery();
-
-        siddhiManager = new SiddhiManager();
         executionPlanRuntime = siddhiManager.createExecutionPlanRuntime(fullQuery);
         executionPlanRuntime.start();
 
@@ -104,13 +102,6 @@ public class LocalCEP {
         return stringBuilder.toString();
     }
 
-    /**
-     * Clean up method
-     */
-    public void shutdown() {
-        siddhiManager.shutdown();
-        queryList = new ArrayList<String>();
-        definitionList = new ArrayList<String>();
-    }
+
 
 }

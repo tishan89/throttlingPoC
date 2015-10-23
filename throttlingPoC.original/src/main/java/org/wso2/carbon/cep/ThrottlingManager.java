@@ -37,7 +37,7 @@ public class ThrottlingManager {
 
     private static final Logger log = Logger.getLogger(ThrottlingManager.class);
 
-    public enum ThrottlingType {
+    public enum ThrottlingRule {
         Rule1, Rule2
     }
     //Rule2 = 10 request per each user for duration of 5 min regardless of API
@@ -46,7 +46,7 @@ public class ThrottlingManager {
     private static LocalCEP localCEP = new LocalCEP();
     private static RemoteCEP remoteCEP = new RemoteCEP();
     private static int maxCount = 5;
-    private static Map<String, List<ThrottlingType>> APIThrottlingTypeMap = new HashMap<String, List<ThrottlingType>>();
+    private static Map<String, List<ThrottlingRule>> apiToRulesMap = new HashMap<String, List<ThrottlingRule>>();
 
     private static Map<String, ResultContainer> resultMap = new ConcurrentHashMap<String, ResultContainer>();
 
@@ -62,21 +62,22 @@ public class ThrottlingManager {
      */
     public static synchronized Boolean isThrottled(Request request) {
 
-        String APIName = request.getAPIName();
+        String apiName = request.getAPIName();
         ExecutionPlanRuntime localRuntime = localCEP.getExecutionPlanRuntime();
         UUID uniqueKey = UUID.randomUUID();
-        ResultContainer result = new ResultContainer(APIThrottlingTypeMap.get(APIName).size());
+        ResultContainer result = new ResultContainer(apiToRulesMap.get(apiName).size());
         resultMap.put(uniqueKey.toString(), result);
+
         try {
-            for (ThrottlingType type : APIThrottlingTypeMap.get(APIName)) {
-                localRuntime.getInputHandler(type.name() + "EvalStream").send(new Object[]{uniqueKey.toString(), request.getIP(), maxCount});
+            for (ThrottlingRule rule : apiToRulesMap.get(apiName)) {
+                localRuntime.getInputHandler(rule.name() + "EvalStream").send(new Object[]{uniqueKey.toString(), request.getIP(), maxCount});
             }
         } catch (InterruptedException e) {
             log.error("Error sending events to Siddhi " + e.getMessage(), e);
         }
         Boolean isThrottled = result.isThrottled();
         if (!isThrottled) {
-            InputHandler remotePerAPIHandler = remoteCEP.getExecutionPlanRuntime().getInputHandler(APIName + "InStream");
+            InputHandler remotePerAPIHandler = remoteCEP.getExecutionPlanRuntime().getInputHandler(apiName + "InStream");
             try {
                 remotePerAPIHandler.send(new Object[]{request.getIP(), maxCount});
             } catch (InterruptedException e) {
@@ -88,19 +89,22 @@ public class ThrottlingManager {
 
     }
 
-    public static void addThrottling(ThrottlingType type, Properties propertyList) {
-        //localCEP.addThrottlingType(type, propertyList);
-        remoteCEP.addThrottlingType(type, propertyList);
-        if (APIThrottlingTypeMap.containsKey(propertyList.getProperty("name"))) {
-            APIThrottlingTypeMap.get(propertyList.getProperty("name")).add(type);
+    //suggested name: buildRulesAndQueries()
+    // buildQueries can take a list of rules
+    public static void buildQueries(ThrottlingRule rule, Properties apiProperties) {
+        //localCEP.buildQueryList(rule, apiProperties);
+        remoteCEP.buildQueryList(rule, apiProperties);
+        if (apiToRulesMap.containsKey(apiProperties.getProperty("name"))) {
+            apiToRulesMap.get(apiProperties.getProperty("name")).add(rule);
         } else {
-            List<ThrottlingType> throttlingTypeList = new ArrayList<ThrottlingType>();
-            throttlingTypeList.add(type);
-            APIThrottlingTypeMap.put(propertyList.getProperty("name"), throttlingTypeList);
+            List<ThrottlingRule> throttlingRules = new ArrayList<ThrottlingRule>();
+            throttlingRules.add(rule);
+            apiToRulesMap.put(apiProperties.getProperty("name"), throttlingRules);
         }
     }
 
-    public static void init() {
+    public static void start() {
+
         localCEP.init();
         remoteCEP.init();
 
@@ -131,12 +135,6 @@ public class ThrottlingManager {
             }
         });
 
-
-    }
-
-    public static void shutdown() {
-        localCEP.shutdown();
-        remoteCEP.shutdown();
 
     }
 

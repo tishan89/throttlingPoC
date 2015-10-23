@@ -3,11 +3,11 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.wso2.carbon.cep</groupId>
-  <artifactId>throttlingPoC</artifactId>
+  <artifactId>throttlingPoC.original</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
 
-  <name>throttlingPoC</name>
+  <name>throttlingPoC.original</name>
   <url>http://maven.apache.org</url>
 
     <dependencies>
@@ -56,7 +56,7 @@
         <antlr.runtime.version>4.5</antlr.runtime.version>
         <guava.version>14.0.1</guava.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <junit.version>4.10</junit.version>
+        <junit.version>4.11</junit.version>
     </properties>
 
     <repositories>
