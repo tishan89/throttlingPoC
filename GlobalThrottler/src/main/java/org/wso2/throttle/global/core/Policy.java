@@ -1,4 +1,4 @@
-package org.wso2.throttle.remote.core;
+package org.wso2.throttle.global.core;
 
 /**
  * Created by dilini on 10/19/15.
