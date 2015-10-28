@@ -1,10 +1,19 @@
 package org.wso2.throttle.core;
 
 import org.apache.log4j.Logger;
+import org.wso2.carbon.databridge.agent.AgentHolder;
+import org.wso2.carbon.databridge.agent.DataPublisher;
+import org.wso2.carbon.databridge.agent.exception.DataEndpointAgentConfigurationException;
+import org.wso2.carbon.databridge.agent.exception.DataEndpointAuthenticationException;
+import org.wso2.carbon.databridge.agent.exception.DataEndpointConfigurationException;
+import org.wso2.carbon.databridge.agent.exception.DataEndpointException;
+import org.wso2.carbon.databridge.commons.Event;
+import org.wso2.carbon.databridge.commons.exception.TransportException;
+import org.wso2.carbon.databridge.commons.utils.DataBridgeCommonsUtils;
 import org.wso2.siddhi.core.ExecutionPlanRuntime;
 import org.wso2.siddhi.core.SiddhiManager;
-import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
+import org.wso2.throttle.common.util.DataPublisherTestUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,7 +58,42 @@ public class Throttler {
         }
         Boolean isThrottled = result.isThrottled();
         //todo: send to remote CEP as well.... For now, we return isThrottled
+
+        //sending to global CEP
+        if (!isThrottled) {
+            sendToGlobalThrottler(request, uniqueKey);
+        }
+
+        resultMap.remove(uniqueKey);
         return isThrottled;
+    }
+
+
+    private void sendToGlobalThrottler(Request request, UUID uniqueKey){
+        AgentHolder.setConfigPath(DataPublisherTestUtil.getDataAgentConfigPath());
+        String hostName = DataPublisherTestUtil.LOCAL_HOST;
+        DataPublisher dataPublisher = null;
+        try {
+            dataPublisher = new DataPublisher("Binary", "tcp://" + hostName + ":9681",
+                                                            "ssl://" + hostName + ":9781", "admin", "admin");
+        } catch (DataEndpointAgentConfigurationException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        } catch (DataEndpointException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        } catch (DataEndpointConfigurationException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        } catch (DataEndpointAuthenticationException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        } catch (TransportException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
+        Event event = new Event();
+        event.setStreamId(DataBridgeCommonsUtils.generateStreamId(request.getAPIName() + "InStream", ""));
+        event.setMetaData(null);
+        event.setCorrelationData(null);
+        event.setPayloadData(new Object[]{uniqueKey.toString(), request.getIp(), 5});
+
+        dataPublisher.publish(event);
     }
 
     /**
@@ -122,9 +166,10 @@ public class Throttler {
 
     private void addCallbacks(ExecutionPlanRuntime runtime){
         runtime.addCallback("LocalResultStream", new StreamCallback() {
+
             @Override
-            public void receive(Event[] events) {
-                for (Event event : events) {
+            public void receive(org.wso2.siddhi.core.event.Event[] events) {
+                for (org.wso2.siddhi.core.event.Event event : events) {
                     resultMap.get(event.getData(0)).addResult((Boolean) event.getData(2));
                 }
             }

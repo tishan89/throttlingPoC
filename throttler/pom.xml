@@ -26,6 +26,16 @@
             <artifactId>siddhi-core</artifactId>
             <version>${siddhi.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.wso2.carbon.analytics-common</groupId>
+            <artifactId>org.wso2.carbon.databridge.agent</artifactId>
+            <version>${carbon.analytics.common.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.wso2.throttle</groupId>
+            <artifactId>throttle.common</artifactId>
+            <version>${throttler.version}</version>
+        </dependency>
     </dependencies>
 
 </project>
