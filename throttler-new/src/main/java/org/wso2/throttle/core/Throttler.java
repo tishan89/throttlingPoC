@@ -15,7 +15,7 @@ import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.siddhi.core.util.EventPrinter;
-import org.wso2.throttle.common.util.DataPublisherTestUtil;
+import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.util.UUID;
 
@@ -174,7 +174,7 @@ public class Throttler {
 
 
     private void sendToGlobalThrottler(Object[] data){
-        AgentHolder.setConfigPath(DataPublisherTestUtil.getDataAgentConfigPath());
+        AgentHolder.setConfigPath(DatabridgeServerUtil.getDataAgentConfigPath());
         String hostName = "10.100.5.99";          //DataPublisherTestUtil.LOCAL_HOST;
         DataPublisher dataPublisher = null;
         try {

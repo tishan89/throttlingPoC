@@ -17,13 +17,25 @@
  */
 package org.wso2.throttle.common.util;
 
-import java.io.File;
+import org.wso2.carbon.databridge.commons.StreamDefinition;
+import org.wso2.carbon.databridge.commons.exception.MalformedStreamDefinitionException;
+import org.wso2.carbon.databridge.commons.utils.EventDefinitionConverterUtils;
 
-public class DataPublisherTestUtil {
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+
+import org.apache.log4j.Logger;
+
+public class DatabridgeServerUtil {
+    private static Logger log = Logger.getLogger(DatabridgeServerUtil.class);
     public static final String LOCAL_HOST = "localhost";
 
     public static void setTrustStoreParams() {
-        File filePath = new File("src" + File.separator + "test" + File.separator + "resources");
+        File filePath = new File("throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
+                "resources");
         if (!filePath.exists()) {
             filePath = new File("components" + File.separator + "data-bridge" + File.separator + "org.wso2.carbon.databridge.agent" + File.separator + "src" + File.separator + "test" + File.separator + "resources");
         }
@@ -40,7 +52,8 @@ public class DataPublisherTestUtil {
     }
 
     public static void setKeyStoreParams() {
-        File filePath = new File("src" + File.separator + "test" + File.separator + "resources");
+        File filePath = new File("throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
+                "resources");
         if (!filePath.exists()) {
             filePath = new File("components" + File.separator + "data-bridge" + File.separator + "org.wso2.carbon.databridge.agent" + File.separator + "src" + File.separator + "test" + File.separator + "resources");
         }
@@ -56,7 +69,8 @@ public class DataPublisherTestUtil {
     }
 
     public static String getDataAgentConfigPath() {
-        File filePath = new File("src" + File.separator + "test" + File.separator + "resources");
+        File filePath = new File("throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
+                "resources");
         if (!filePath.exists()) {
             filePath = new File("components" + File.separator + "data-bridge" + File.separator + "org.wso2.carbon.databridge.agent" + File.separator + "src" + File.separator + "test" + File.separator + "resources");
         }
@@ -70,7 +84,8 @@ public class DataPublisherTestUtil {
     }
 
     public static String getDataBridgeConfigPath() {
-        File filePath = new File("src" + File.separator + "test" + File.separator + "resources");
+        File filePath = new File("throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
+                "resources");
         if (!filePath.exists()) {
             filePath = new File("components" + File.separator + "data-bridge" + File.separator + "org.wso2.carbon.databridge.agent" + File.separator + "src" + File.separator + "test" + File.separator + "resources");
         }
@@ -81,6 +96,37 @@ public class DataPublisherTestUtil {
             filePath = new File("test" + File.separator + "resources");
         }
         return filePath.getAbsolutePath() + File.separator + "data-bridge-config.xml";
+    }
+
+    public static StreamDefinition loadStream() {
+        File fileEntry = new File("throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
+                "resources" + File.separator + "ResultStream_1.0.0.json").getAbsoluteFile();
+        BufferedReader bufferedReader = null;
+        StreamDefinition streamDefinition = null;
+        StringBuilder stringBuilder = new StringBuilder();
+        try {
+            bufferedReader = new BufferedReader(new FileReader(fileEntry));
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                stringBuilder.append(line).append("\n");
+            }
+            streamDefinition = EventDefinitionConverterUtils.convertFromJson(stringBuilder.toString().trim());
+        } catch (FileNotFoundException e) {
+            log.error("Error in reading file " + fileEntry.getName(), e);
+        } catch (IOException e) {
+            log.error("Error in reading file " + fileEntry.getName(), e);
+        } catch (MalformedStreamDefinitionException e) {
+            log.error("Error in converting Stream definition " + e.getMessage(), e);
+        } finally {
+            try {
+                if (bufferedReader != null) {
+                    bufferedReader.close();
+                }
+            } catch (IOException e) {
+                log.error("Error occurred when reading the file : " + e.getMessage(), e);
+            }
+            return streamDefinition;
+        }
     }
 
 }

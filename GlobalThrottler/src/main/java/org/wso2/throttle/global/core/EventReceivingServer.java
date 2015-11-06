@@ -34,7 +34,7 @@ import org.wso2.carbon.databridge.core.internal.authentication.AuthenticationHan
 import org.wso2.carbon.databridge.receiver.binary.conf.BinaryDataReceiverConfiguration;
 import org.wso2.carbon.databridge.receiver.binary.internal.BinaryDataReceiver;
 import org.wso2.carbon.user.api.UserStoreException;
-import org.wso2.throttle.common.util.DataPublisherTestUtil;
+import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.io.IOException;
 import java.net.SocketException;
@@ -78,7 +78,7 @@ public class EventReceivingServer {
     }
 
     public void start(int tcpPort, int securePort) throws DataBridgeException, IOException {
-        DataPublisherTestUtil.setKeyStoreParams();
+        DatabridgeServerUtil.setKeyStoreParams();
         streamDefinitionStore = getStreamDefinitionStore();
         numberOfEventsReceived = new AtomicInteger(0);
         DataBridge databridge = new DataBridge(new AuthenticationHandler() {
@@ -107,7 +107,7 @@ public class EventReceivingServer {
             public void destroyContext(AgentSession agentSession) {
 
             }
-        }, streamDefinitionStore, DataPublisherTestUtil.getDataBridgeConfigPath());
+        }, streamDefinitionStore, DatabridgeServerUtil.getDataBridgeConfigPath());
 
         BinaryDataReceiverConfiguration dataReceiverConfiguration = new BinaryDataReceiverConfiguration(securePort, tcpPort);
 

@@ -32,7 +32,7 @@ import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.siddhi.core.util.EventPrinter;
-import org.wso2.throttle.common.util.DataPublisherTestUtil;
+import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -85,8 +85,8 @@ public class Throttler {
             }
 
             private void sendToLocalThrottler(Event siddhiEvent, String throttlingRule) {
-                AgentHolder.setConfigPath(DataPublisherTestUtil.getDataAgentConfigPath());
-                String hostName = DataPublisherTestUtil.LOCAL_HOST;
+                AgentHolder.setConfigPath(DatabridgeServerUtil.getDataAgentConfigPath());
+                String hostName = DatabridgeServerUtil.LOCAL_HOST;
                 DataPublisher dataPublisher = null;
                 try {
                     dataPublisher = new DataPublisher("Binary", "tcp://" + hostName + ":9681",
