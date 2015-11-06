@@ -215,6 +215,8 @@ public class Throttler {
 
     private void sendToGlobalThrottler(Object[] data){
         AgentHolder.setConfigPath(DatabridgeServerUtil.getDataAgentConfigPath());
+        DatabridgeServerUtil.setTrustStoreParams();
+
         String hostName = "10.100.5.99";          //DataPublisherTestUtil.LOCAL_HOST;
         DataPublisher dataPublisher = null;
         try {
