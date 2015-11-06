@@ -70,6 +70,7 @@ public class Throttler {
         siddhiManager = new SiddhiManager();
 
         String commonExecutionPlan = "define stream RuleStream (rule string, v1 string, v2 string, messageID string);\n" +
+                                     "define stream GlobalResultStream (key string, isThrottled bool);\n" +
                                      "\n" +
                                      "@IndexBy('key') \n" +
                                      "define table ThrottleTable (key string, isThrottled bool);\n" +
@@ -214,6 +215,8 @@ public class Throttler {
 
     private void sendToGlobalThrottler(Object[] data){
         AgentHolder.setConfigPath(DatabridgeServerUtil.getDataAgentConfigPath());
+        DatabridgeServerUtil.setTrustStoreParams();
+
         String hostName = "10.100.5.99";          //DataPublisherTestUtil.LOCAL_HOST;
         DataPublisher dataPublisher = null;
         try {

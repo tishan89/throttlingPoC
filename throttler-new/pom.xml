@@ -27,6 +27,11 @@
             <version>${siddhi.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.wso2.siddhi</groupId>
+            <artifactId>siddhi-extension-string</artifactId>
+            <version>${siddhi.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.wso2.carbon.analytics-common</groupId>
             <artifactId>org.wso2.carbon.databridge.agent</artifactId>
             <version>${carbon.analytics.common.version}</version>
