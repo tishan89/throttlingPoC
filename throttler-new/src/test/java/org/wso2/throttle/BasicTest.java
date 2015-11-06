@@ -10,9 +10,7 @@ import java.io.IOException;
 
 public class BasicTest {
     @Test
-    public void testRule1()
-            throws InterruptedException, StreamDefinitionStoreException, IOException,
-                   DataBridgeException {
+    public void testRule1() throws InterruptedException, DataBridgeException, StreamDefinitionStoreException, IOException {
         Throttler throttler = Throttler.getInstance();
         throttler.start();
 
