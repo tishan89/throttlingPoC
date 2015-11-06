@@ -27,6 +27,8 @@ import org.wso2.carbon.databridge.agent.exception.DataEndpointConfigurationExcep
 import org.wso2.carbon.databridge.agent.exception.DataEndpointException;
 import org.wso2.carbon.databridge.commons.exception.TransportException;
 import org.wso2.carbon.databridge.commons.utils.DataBridgeCommonsUtils;
+import org.wso2.carbon.databridge.core.exception.DataBridgeException;
+import org.wso2.carbon.databridge.core.exception.StreamDefinitionStoreException;
 import org.wso2.siddhi.core.ExecutionPlanRuntime;
 import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
@@ -35,6 +37,7 @@ import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.siddhi.core.util.EventPrinter;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
+import java.io.IOException;
 import java.util.UUID;
 
 /**
@@ -48,6 +51,7 @@ public class Throttler {
     private InputHandler ruleStreamInputHandler;
     private InputHandler requestStreamInputHandler;
     private InputHandler globalStreamInputHandler;
+    private EventReceivingServer eventReceivingServer;
 
     private Throttler(){
     }
@@ -60,9 +64,9 @@ public class Throttler {
     }
 
     /**
-     * Starts throttler engine
+     * Starts throttler engine. Calling method should catch the exceptions and call stop to clean up.
      */
-    public void start(){
+    public void start() throws DataBridgeException, IOException, StreamDefinitionStoreException {
         siddhiManager = new SiddhiManager();
 
         String commonExecutionPlan = "define stream RuleStream (rule string, v1 string, v2 string, messageID string);\n" +
@@ -104,6 +108,9 @@ public class Throttler {
 
         //start common EP Runtime
         commonExecutionPlanRuntime.start();
+
+        eventReceivingServer = new EventReceivingServer();
+        eventReceivingServer.start(9611, 9711);
     }
 
     /**
@@ -158,7 +165,12 @@ public class Throttler {
     }
 
     public void stop(){
-        siddhiManager.shutdown();
+        if (siddhiManager != null) {
+            siddhiManager.shutdown();
+        }
+        if (eventReceivingServer != null) {
+            eventReceivingServer.stop();
+        }
     }
 
 
