@@ -70,6 +70,7 @@ public class Throttler {
         siddhiManager = new SiddhiManager();
 
         String commonExecutionPlan = "define stream RuleStream (rule string, v1 string, v2 string, messageID string);\n" +
+                                     "define stream GlobalResultStream (key string, isThrottled bool);\n" +
                                      "\n" +
                                      "@IndexBy('key') \n" +
                                      "define table ThrottleTable (key string, isThrottled bool);\n" +
