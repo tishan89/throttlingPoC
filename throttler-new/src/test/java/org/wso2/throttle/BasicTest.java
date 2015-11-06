@@ -1,12 +1,18 @@
 package org.wso2.throttle;
 
 import org.junit.Test;
+import org.wso2.carbon.databridge.core.exception.DataBridgeException;
+import org.wso2.carbon.databridge.core.exception.StreamDefinitionStoreException;
 import org.wso2.throttle.core.Request;
 import org.wso2.throttle.core.Throttler;
 
+import java.io.IOException;
+
 public class BasicTest {
     @Test
-    public void testRule1() throws InterruptedException{
+    public void testRule1()
+            throws InterruptedException, StreamDefinitionStoreException, IOException,
+                   DataBridgeException {
         Throttler throttler = Throttler.getInstance();
         throttler.start();
 
