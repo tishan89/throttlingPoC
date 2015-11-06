@@ -160,8 +160,8 @@ public class Throttler {
 
     //todo: Not returning a boolean. May be, we want to make this give a result synchronously.
     public void isThrottled(Request request) throws InterruptedException {
-        getRequestStreamInputHandler().send(new Object[]{request.getAPIName(), request.getUserId(), UUID.randomUUID()});
-        sendToGlobalThrottler(new Object[]{request.getAPIName(), request.getUserId(), UUID.randomUUID()});
+        getRequestStreamInputHandler().send(new Object[]{request.getParameter2(), request.getParameter1(), UUID.randomUUID()});
+        sendToGlobalThrottler(new Object[]{request.getParameter2(), request.getParameter1(), UUID.randomUUID()});
     }
 
     public void stop(){

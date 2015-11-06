@@ -22,27 +22,27 @@ package org.wso2.throttle.core;
  * Request which is sent to Throttler.
  */
 public class Request {
-    private String userId;
-    private String apiName;
+    private String parameter1;
+    private String parameter2;
 
     public Request(String apiName, String userId){
-        this.apiName = apiName;
-        this.userId = userId;
+        this.parameter2 = apiName;
+        this.parameter1 = userId;
     }
 
-    public String getUserId() {
-        return userId;
+    public String getParameter1() {
+        return parameter1;
     }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
+    public void setParameter1(String parameter1) {
+        this.parameter1 = parameter1;
     }
 
-    public String getAPIName() {
-        return apiName;
+    public String getParameter2() {
+        return parameter2;
     }
 
-    public void setAPIName(String apiName) {
-        this.apiName = apiName;
+    public void setParameter2(String apiName) {
+        this.parameter2 = apiName;
     }
 }
