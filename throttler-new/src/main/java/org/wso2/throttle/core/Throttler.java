@@ -38,7 +38,10 @@ import org.wso2.siddhi.core.util.EventPrinter;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Utility class which does throttling
@@ -52,12 +55,14 @@ public class Throttler {
     private InputHandler requestStreamInputHandler;
     private InputHandler globalStreamInputHandler;
     private EventReceivingServer eventReceivingServer;
+    private Map<String, Integer> apiToRuleMap = new ConcurrentHashMap<String, Integer>();
+    private static Map<String, ResultContainer> resultMap = new ConcurrentHashMap<String, ResultContainer>();
 
-    private Throttler(){
+    private Throttler() {
     }
 
-    public static synchronized Throttler getInstance(){
-        if(throttler == null){
+    public static synchronized Throttler getInstance() {
+        if (throttler == null) {
             throttler = new Throttler();
         }
         return throttler;
@@ -70,28 +75,28 @@ public class Throttler {
         siddhiManager = new SiddhiManager();
 
         String commonExecutionPlan = "define stream RuleStream (rule string, v1 string, v2 string, messageID string);\n" +
-                                     "define stream GlobalResultStream (key string, isThrottled bool);\n" +
-                                     "\n" +
-                                     "@IndexBy('key') \n" +
-                                     "define table ThrottleTable (key string, isThrottled bool);\n" +
-                                     "\n" +
-                                     "/* COMMON QUERIES BEGIN \n" +
-                                     "These queries will not change as new rules are added/removed.\n" +
-                                     "*/\n" +
-                                     "from RuleStream join ThrottleTable\n" +
-                                     "on ThrottleTable.key == str:concat(RuleStream.rule, \"_\", RuleStream.v1, \"_\", RuleStream.v2)\n" +
-                                     "select RuleStream.rule, RuleStream.v1, RuleStream.v2, ThrottleTable.isThrottled, RuleStream.messageID\n" +
-                                     "insert into LocalResultStream;\n" +
-                                     "\n" +
-                                     "from RuleStream[not ((str:concat(RuleStream.rule, \"_\", RuleStream.v1, \"_\", RuleStream.v2) == ThrottleTable.key ) in ThrottleTable)]\n" +
-                                     "select str:concat(RuleStream.rule,\"MM\") as rule, RuleStream.v1, RuleStream.v2, false as isThrottled, RuleStream.messageID\n" +
-                                     "insert into LocalResultStream;\n" +
-                                     "/* COMMON QUERIES END */\n" +
-                                     "\n" +
-                                     "/* Updating Throttle Table with the outputs coming from the global CEP */\n" +
-                                     "from GlobalResultStream\n" +
-                                     "select *\n" +
-                                     "insert into ThrottleTable;";
+                "define stream GlobalResultStream (key string, isThrottled bool);\n" +
+                "\n" +
+                "@IndexBy('key') \n" +
+                "define table ThrottleTable (key string, isThrottled bool);\n" +
+                "\n" +
+                "/* COMMON QUERIES BEGIN \n" +
+                "These queries will not change as new rules are added/removed.\n" +
+                "*/\n" +
+                "from RuleStream join ThrottleTable\n" +
+                "on ThrottleTable.key == str:concat(RuleStream.rule, \"_\", RuleStream.v1, \"_\", RuleStream.v2)\n" +
+                "select RuleStream.rule, RuleStream.v1, RuleStream.v2, ThrottleTable.isThrottled, RuleStream.messageID\n" +
+                "insert into LocalResultStream;\n" +
+                "\n" +
+                "from RuleStream[not ((str:concat(RuleStream.rule, \"_\", RuleStream.v1, \"_\", RuleStream.v2) == ThrottleTable.key ) in ThrottleTable)]\n" +
+                "select str:concat(RuleStream.rule,\"MM\") as rule, RuleStream.v1, RuleStream.v2, false as isThrottled, RuleStream.messageID\n" +
+                "insert into LocalResultStream;\n" +
+                "/* COMMON QUERIES END */\n" +
+                "\n" +
+                "/* Updating Throttle Table with the outputs coming from the global CEP */\n" +
+                "from GlobalResultStream\n" +
+                "select *\n" +
+                "insert into ThrottleTable;";
 
         ExecutionPlanRuntime commonExecutionPlanRuntime = siddhiManager.createExecutionPlanRuntime(commonExecutionPlan);
 
@@ -100,6 +105,10 @@ public class Throttler {
             @Override
             public void receive(Event[] events) {
                 EventPrinter.print(events);
+                //Get corresponding result container and add the result
+                for (Event event : events) {
+                    resultMap.get(event.getData(4)).addResult((Boolean) event.getData(3));
+                }
             }
         });
 
@@ -116,14 +125,15 @@ public class Throttler {
 
     /**
      * This method lets a user to add a predefined rule (pre-defined as a template), specifying desired parameters.
-     * @param templateID    ID of the rule-template.
-     * @param parameter1    First parameter, to be inserted in to the template
-     * @param parameter2    Second parameter, to be inserted in to the template
+     *
+     * @param templateID ID of the rule-template.
+     * @param parameter1 First parameter, to be inserted in to the template
+     * @param parameter2 Second parameter, to be inserted in to the template
      */
     public synchronized void addRule(String templateID, String parameter1, String parameter2) {
         //get rule-query from templateIDToQuery map
         String queryTemplate = TemplateStore.getInstance().getQueryTemplate(templateID);
-        if(queryTemplate == null){
+        if (queryTemplate == null) {
             throw new RuntimeException("No query template exist for ID: " + templateID + " in Template Store.");
         }
 
@@ -132,7 +142,7 @@ public class Throttler {
 
         //create execution plan runtime with the query created above
         ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (apiName string, userID string, messageID string); " +
-                                                 query);
+                query);
 
         //Add call backs. Here, we take output events and insert into RuleStream
         ruleRuntime.addCallback("RuleStream", new StreamCallback() {
@@ -149,23 +159,58 @@ public class Throttler {
         //get and register input handler for RequestStream, so isThrottled() can use it.
         setRequestStreamInputHandler(ruleRuntime.getInputHandler("RequestStream"));
 
+        //populate map to get rules for given api
+        populateApiToRuleMap(templateID, parameter1, parameter2);
+
         //start rule-x EP runtime
         ruleRuntime.start();
     }
 
+    private void populateApiToRuleMap(String templateID, String parameter1, String parameter2) {
+        // assume para1 is for api name and if that is not null add to specific api
+        // else add to all
+        if (parameter1 != null) {
+            Integer ruleCount = apiToRuleMap.get(parameter1);
+            if (ruleCount != null) {
+                ruleCount++;
+            } else {
+                apiToRuleMap.put(parameter1, 1);
+            }
+        } else {
+            for (Integer ruleCount : apiToRuleMap.values()) {
+                ruleCount++;
+            }
+        }
+    }
+
 
     //todo
-    public synchronized void removeRule(){
+    public synchronized void removeRule() {
     }
 
 
-    //todo: Not returning a boolean. May be, we want to make this give a result synchronously.
-    public void isThrottled(Request request) throws InterruptedException {
-        getRequestStreamInputHandler().send(new Object[]{request.getParameter2(), request.getParameter1(), UUID.randomUUID()});
-        sendToGlobalThrottler(new Object[]{request.getParameter2(), request.getParameter1(), UUID.randomUUID()});
+    //todo: add a call back to local result stream. upon receiving results find corresponding ResultContainer from
+    // result map and call addResult on it.
+    public boolean isThrottled(Request request) throws InterruptedException {
+        String apiName = request.getParameter1();
+        UUID uniqueKey = UUID.randomUUID();
+        Integer ruleCount = apiToRuleMap.get(apiName);
+        if (ruleCount != null) {
+            ResultContainer result = new ResultContainer(ruleCount);
+            resultMap.put(uniqueKey.toString(), result);
+            getRequestStreamInputHandler().send(new Object[]{request.getParameter2(), request.getParameter1(), uniqueKey});
+            boolean isThrottled = result.isThrottled();
+            if (!isThrottled) {
+                sendToGlobalThrottler(new Object[]{request.getParameter2(), request.getParameter1(), uniqueKey});
+            }
+            resultMap.remove(uniqueKey);
+            return isThrottled;
+        } else {
+            return false;
+        }
     }
 
-    public void stop(){
+    public void stop() {
         if (siddhiManager != null) {
             siddhiManager.shutdown();
         }
@@ -176,15 +221,15 @@ public class Throttler {
 
 
     //todo: improve validation
-    private String replaceParamsInTemplate(String template, String parameter1, String parameter2){
-        if(template == null){
+    private String replaceParamsInTemplate(String template, String parameter1, String parameter2) {
+        if (template == null) {
             throw new IllegalArgumentException("template cannot be null");
         }
-        if(parameter1 != null){
-            template = template.replace("$param1", "\""+parameter1+"\"");
+        if (parameter1 != null) {
+            template = template.replace("$param1", "\"" + parameter1 + "\"");
         }
-        if(parameter2 != null){
-            template = template.replace("$param2", "\""+parameter2+"\"");
+        if (parameter2 != null) {
+            template = template.replace("$param2", "\"" + parameter2 + "\"");
         }
         return template;
     }
@@ -213,7 +258,7 @@ public class Throttler {
         this.globalStreamInputHandler = globalStreamInputHandler;
     }
 
-    private void sendToGlobalThrottler(Object[] data){
+    private void sendToGlobalThrottler(Object[] data) {
         AgentHolder.setConfigPath(DatabridgeServerUtil.getDataAgentConfigPath());
         DatabridgeServerUtil.setTrustStoreParams();
 
@@ -221,7 +266,7 @@ public class Throttler {
         DataPublisher dataPublisher = null;
         try {
             dataPublisher = new DataPublisher("Binary", "tcp://" + hostName + ":9611",
-                                                            "ssl://" + hostName + ":9711", "admin", "admin");
+                    "ssl://" + hostName + ":9711", "admin", "admin");
         } catch (DataEndpointAgentConfigurationException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         } catch (DataEndpointException e) {
