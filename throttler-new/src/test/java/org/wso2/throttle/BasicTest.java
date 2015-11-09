@@ -18,7 +18,7 @@ public class BasicTest {
         throttler.addRule("rule2", null, null);
 
         for(int i=0; i<10000; i++) {
-            throttler.isThrottled(new Request("api1", "dilini"));
+            System.out.println(throttler.isThrottled(new Request("api1", "dilini")));
         }
 
         Thread.sleep(10000);

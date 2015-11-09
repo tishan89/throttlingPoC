@@ -26,8 +26,8 @@ public class Request {
     private String parameter2;
 
     public Request(String apiName, String userId){
-        this.parameter2 = apiName;
-        this.parameter1 = userId;
+        this.parameter1 = apiName;
+        this.parameter2 = userId;
     }
 
     public String getParameter1() {

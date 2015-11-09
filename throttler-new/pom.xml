@@ -71,6 +71,12 @@
             <artifactId>org.wso2.carbon.databridge.agent</artifactId>
             <version>${carbon.analytics.common.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.wso2.carbon.event-processing</groupId>
+            <artifactId>org.wso2.carbon.event.processor.stub</artifactId>
+            <version>${carbon.event.processing.version}</version>
+        </dependency>
+
     </dependencies>
 
 </project>
