@@ -38,7 +38,6 @@ import org.wso2.siddhi.core.util.EventPrinter;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -107,7 +106,7 @@ public class Throttler {
                 EventPrinter.print(events);
                 //Get corresponding result container and add the result
                 for (Event event : events) {
-                    resultMap.get(event.getData(4)).addResult((Boolean) event.getData(3));
+                    resultMap.get(event.getData(4).toString()).addResult((Boolean) event.getData(3));
                 }
             }
         });
@@ -131,10 +130,35 @@ public class Throttler {
      * @param parameter2 Second parameter, to be inserted in to the template
      */
     public synchronized void addRule(String templateID, String parameter1, String parameter2) {
+        deployRuleToLocalCEP(templateID, parameter1, parameter2);
+//        deployRuleToGlobalCEP(templateID, parameter1, parameter2);  //todo: test after doing perf tests.
+    }
+
+    //todo: this method has not being implemented completely. Will be done after doing perf tests.
+    private void deployRuleToGlobalCEP(String templateID, String parameter1, String parameter2){
+        //get rule-query from templateIDToQuery map
+        String queryTemplate = GlobalTemplateStore.getInstance().getQueryTemplate(templateID);
+        if (queryTemplate == null) {
+            throw new RuntimeException("No query template exist for ID: " + templateID + " in Global Template Store.");
+        }
+
+        //replace parameters in the queries, if required.
+        String queries = replaceParamsInTemplate(queryTemplate, parameter1, parameter2);
+
+        //create execution plan runtime with the query created above
+        ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (apiName string, userID string, messageID string); " +
+                                                                                    queries);
+
+        //get global CEP client
+        GlobalCEPClient globalCEPClient = new GlobalCEPClient();
+        globalCEPClient.deployExecutionPlan(queries);
+    }
+
+    private void deployRuleToLocalCEP(String templateID, String parameter1, String parameter2){
         //get rule-query from templateIDToQuery map
         String queryTemplate = TemplateStore.getInstance().getQueryTemplate(templateID);
         if (queryTemplate == null) {
-            throw new RuntimeException("No query template exist for ID: " + templateID + " in Template Store.");
+            throw new RuntimeException("No query template exist for ID: " + templateID + " in Local Template Store.");
         }
 
         //replace parameters in the query, if required.
@@ -142,7 +166,7 @@ public class Throttler {
 
         //create execution plan runtime with the query created above
         ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (apiName string, userID string, messageID string); " +
-                query);
+                                                                                    query);
 
         //Add call backs. Here, we take output events and insert into RuleStream
         ruleRuntime.addCallback("RuleStream", new StreamCallback() {
@@ -200,6 +224,7 @@ public class Throttler {
             resultMap.put(uniqueKey.toString(), result);
             getRequestStreamInputHandler().send(new Object[]{request.getParameter2(), request.getParameter1(), uniqueKey});
             boolean isThrottled = result.isThrottled();
+            System.out.println("[inside isThrottled] isThrottled: " + isThrottled);
             if (!isThrottled) {
                 sendToGlobalThrottler(new Object[]{request.getParameter2(), request.getParameter1(), uniqueKey});
             }
@@ -262,11 +287,11 @@ public class Throttler {
         AgentHolder.setConfigPath(DatabridgeServerUtil.getDataAgentConfigPath());
         DatabridgeServerUtil.setTrustStoreParams();
 
-        String hostName = "10.100.5.99";          //DataPublisherTestUtil.LOCAL_HOST;
+        String hostName = "10.100.5.59";          //DataPublisherTestUtil.LOCAL_HOST;
         DataPublisher dataPublisher = null;
         try {
-            dataPublisher = new DataPublisher("Binary", "tcp://" + hostName + ":9611",
-                    "ssl://" + hostName + ":9711", "admin", "admin");
+            dataPublisher = new DataPublisher("Binary", "tcp://" + hostName + ":9621",
+                    "ssl://" + hostName + ":9721", "admin", "admin");
         } catch (DataEndpointAgentConfigurationException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         } catch (DataEndpointException e) {
