@@ -193,16 +193,26 @@ public class Throttler {
     private void populateApiToRuleMap(String templateID, String parameter1, String parameter2) {
         // assume para1 is for api name and if that is not null add to specific api
         // else add to all
-        if (parameter1 != null) {
+        if (parameter1 != null && parameter2 != null) {
+            Integer ruleCount = apiToRuleMap.get(parameter1 + "_" + parameter2);
+            if (ruleCount != null) {
+                ruleCount++;
+            } else {
+                apiToRuleMap.put(parameter1 + "_" + parameter2, 1);
+            }
+        } else if (parameter1 != null) {
             Integer ruleCount = apiToRuleMap.get(parameter1);
             if (ruleCount != null) {
                 ruleCount++;
             } else {
                 apiToRuleMap.put(parameter1, 1);
             }
-        } else {
-            for (Integer ruleCount : apiToRuleMap.values()) {
+        } else if (parameter2 != null) {
+            Integer ruleCount = apiToRuleMap.get(parameter2);
+            if (ruleCount != null) {
                 ruleCount++;
+            } else {
+                apiToRuleMap.put(parameter2, 1);
             }
         }
     }
@@ -216,7 +226,7 @@ public class Throttler {
     public boolean isThrottled(Request request) throws InterruptedException {
         String apiName = request.getParameter1();
         UUID uniqueKey = UUID.randomUUID();
-        Integer ruleCount = apiToRuleMap.get(apiName);
+        Integer ruleCount = getRuleCount(request);
         if (ruleCount != null) {
             ResultContainer result = new ResultContainer(ruleCount);
             resultMap.put(uniqueKey.toString(), result);
@@ -231,6 +241,30 @@ public class Throttler {
         } else {
             return false;
         }
+    }
+
+    /**
+     * Get the number of rules associated with the given request
+     *
+     * @param request request
+     * @return no of rules associated
+     */
+    private Integer getRuleCount(Request request) {
+        Integer count = 0;
+        Integer para1Count = apiToRuleMap.get(request.getParameter1());
+        if (para1Count != null) {
+            count += para1Count;
+        }
+        Integer para2Count = apiToRuleMap.get(request.getParameter2());
+        if (para2Count != null) {
+            count += para2Count;
+        }
+        Integer commonCount = apiToRuleMap.get(request.getParameter1() + "_" + request.getParameter2());
+        if (commonCount != null) {
+            count += commonCount;
+        }
+
+        return count;
     }
 
     public void stop() {
