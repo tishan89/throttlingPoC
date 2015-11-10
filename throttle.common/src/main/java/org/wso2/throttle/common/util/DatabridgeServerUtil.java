@@ -34,7 +34,7 @@ public class DatabridgeServerUtil {
     public static final String LOCAL_HOST = "localhost";
 
     public static void setTrustStoreParams() {
-        File filePath = new File("throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
+        File filePath = new File(".." + File.separator + "throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
                 "resources");
         if (!filePath.exists()) {
             filePath = new File("components" + File.separator + "data-bridge" + File.separator + "org.wso2.carbon.databridge.agent" + File.separator + "src" + File.separator + "test" + File.separator + "resources");
@@ -52,7 +52,7 @@ public class DatabridgeServerUtil {
     }
 
     public static void setKeyStoreParams() {
-        File filePath = new File("throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
+        File filePath = new File(".." + File.separator + "throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
                 "resources");
         if (!filePath.exists()) {
             filePath = new File("components" + File.separator + "data-bridge" + File.separator + "org.wso2.carbon.databridge.agent" + File.separator + "src" + File.separator + "test" + File.separator + "resources");
@@ -69,7 +69,7 @@ public class DatabridgeServerUtil {
     }
 
     public static String getDataAgentConfigPath() {
-        File filePath = new File("throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
+        File filePath = new File(".." + File.separator + "throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
                 "resources");
         if (!filePath.exists()) {
             filePath = new File("components" + File.separator + "data-bridge" + File.separator + "org.wso2.carbon.databridge.agent" + File.separator + "src" + File.separator + "test" + File.separator + "resources");
@@ -84,7 +84,9 @@ public class DatabridgeServerUtil {
     }
 
     public static String getDataBridgeConfigPath() {
-        File filePath = new File("throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
+        File filePath = new File(".." + File.separator + "throttle.common" + File.separator + "src" + File.separator + "main"
+                + File
+                .separator +
                 "resources");
         if (!filePath.exists()) {
             filePath = new File("components" + File.separator + "data-bridge" + File.separator + "org.wso2.carbon.databridge.agent" + File.separator + "src" + File.separator + "test" + File.separator + "resources");
@@ -99,7 +101,8 @@ public class DatabridgeServerUtil {
     }
 
     public static StreamDefinition loadStream() {
-        File fileEntry = new File("throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
+        File fileEntry = new File(".." + File.separator + "throttle.common" + File.separator + "src" + File.separator + "main" +
+                File.separator +
                 "resources" + File.separator + "ResultStream_1.0.0.json").getAbsoluteFile();
         BufferedReader bufferedReader = null;
         StreamDefinition streamDefinition = null;
