@@ -46,9 +46,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class EventReceivingServer {
     Logger log = Logger.getLogger(EventReceivingServer.class);
 
-    BinaryDataReceiver binaryDataReceiver;
-    InMemoryStreamDefinitionStore streamDefinitionStore;
-    AtomicInteger numberOfEventsReceived = new AtomicInteger(0);
+    private BinaryDataReceiver binaryDataReceiver;
+    private InMemoryStreamDefinitionStore streamDefinitionStore;
+    private AtomicInteger numberOfEventsReceived = new AtomicInteger(0);
+    private Throttler throttler = Throttler.getInstance();
+
 
     public void addStreamDefinition(StreamDefinition streamDefinition, int tenantId)
             throws StreamDefinitionStoreException {
@@ -103,7 +105,7 @@ public class EventReceivingServer {
         streamDefinitionStore.saveStreamDefinitionToStore(DatabridgeServerUtil.loadStream(), -1234);
         BinaryDataReceiverConfiguration dataReceiverConfiguration = new BinaryDataReceiverConfiguration(securePort, tcpPort);
         binaryDataReceiver = new BinaryDataReceiver(dataReceiverConfiguration, databridge);
-
+        //register an agent call back to receive events and sent to throttler.
         databridge.subscribe(new AgentCallback() {
 
             public void definedStream(StreamDefinition streamDefinition,
@@ -118,11 +120,13 @@ public class EventReceivingServer {
 
             @Override
             public void receive(List<Event> eventList, Credentials credentials) {
-                numberOfEventsReceived.addAndGet(eventList.size());
-                log.info("Received events : " + numberOfEventsReceived);
+                if (log.isDebugEnabled()) {
+                    numberOfEventsReceived.addAndGet(eventList.size());
+                    log.debug("Received events : " + numberOfEventsReceived);
+                }
                 for (Event event : eventList) {
                     try {
-                        Throttler.getInstance().getGlobalStreamInputHandler().send(event.getTimeStamp(), event.getPayloadData());
+                        throttler.getGlobalStreamInputHandler().send(event.getTimeStamp(), event.getPayloadData());
                     } catch (InterruptedException e) {
                         log.error("Interruption occurred while sending message to global inout stream. " + e.getMessage(), e);
                     }

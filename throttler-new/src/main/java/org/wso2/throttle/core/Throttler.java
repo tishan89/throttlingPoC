@@ -213,8 +213,6 @@ public class Throttler {
     }
 
 
-    //todo: add a call back to local result stream. upon receiving results find corresponding ResultContainer from
-    // result map and call addResult on it.
     public boolean isThrottled(Request request) throws InterruptedException {
         String apiName = request.getParameter1();
         UUID uniqueKey = UUID.randomUUID();
@@ -293,15 +291,15 @@ public class Throttler {
             dataPublisher = new DataPublisher("Binary", "tcp://" + hostName + ":9621",
                     "ssl://" + hostName + ":9721", "admin", "admin");
         } catch (DataEndpointAgentConfigurationException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            log.error(e.getMessage(), e);
         } catch (DataEndpointException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            log.error(e.getMessage(), e);
         } catch (DataEndpointConfigurationException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            log.error(e.getMessage(), e);
         } catch (DataEndpointAuthenticationException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            log.error(e.getMessage(), e);
         } catch (TransportException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            log.error(e.getMessage(), e);
         }
         org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
         event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.0"));
