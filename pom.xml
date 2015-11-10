@@ -27,9 +27,9 @@
     <packaging>pom</packaging>
     <modules>
         <module>throttle.common</module>
-        <module>throttler</module>
-        <module>GlobalThrottler</module>
-        <module>throttlingPoC.original</module>
+        <!--<module>throttler</module>-->
+        <!--<module>GlobalThrottler</module>-->
+        <!--<module>throttlingPoC.original</module>-->
         <module>throttler-new</module>
     </modules>
 
