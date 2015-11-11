@@ -37,6 +37,7 @@ import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.siddhi.core.util.EventPrinter;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
@@ -319,7 +320,7 @@ public class Throttler {
         AgentHolder.setConfigPath(DatabridgeServerUtil.getDataAgentConfigPath());
         DatabridgeServerUtil.setTrustStoreParams();
 
-        String hostName = "10.100.5.59";          //DataPublisherTestUtil.LOCAL_HOST;
+        String hostName = "10.100.5.59";
         DataPublisher dataPublisher = null;
         try {
             dataPublisher = new DataPublisher("Binary", "tcp://" + hostName + ":9621",

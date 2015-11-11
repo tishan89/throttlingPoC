@@ -72,6 +72,7 @@ public class EventReceivingServer {
 
     public void start(int tcpPort, int securePort) throws DataBridgeException, IOException, StreamDefinitionStoreException {
         DatabridgeServerUtil.setKeyStoreParams();
+        DatabridgeServerUtil.setTrustStoreParams();
         streamDefinitionStore = getStreamDefinitionStore();
 
         DataBridge databridge = new DataBridge(new AuthenticationHandler() {
@@ -105,6 +106,7 @@ public class EventReceivingServer {
         streamDefinitionStore.saveStreamDefinitionToStore(DatabridgeServerUtil.loadStream(), -1234);
         BinaryDataReceiverConfiguration dataReceiverConfiguration = new BinaryDataReceiverConfiguration(securePort, tcpPort);
         binaryDataReceiver = new BinaryDataReceiver(dataReceiverConfiguration, databridge);
+
         //register an agent call back to receive events and sent to throttler.
         databridge.subscribe(new AgentCallback() {
 
