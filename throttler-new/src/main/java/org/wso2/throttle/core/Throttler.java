@@ -37,7 +37,6 @@ import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.siddhi.core.util.EventPrinter;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
@@ -58,6 +57,9 @@ public class Throttler {
     private Map<String, Integer> apiToRuleMap = new ConcurrentHashMap<String, Integer>();
     private static Map<String, ResultContainer> resultMap = new ConcurrentHashMap<String, ResultContainer>();
 
+    private static String hostName = "10.100.5.99";
+    private DataPublisher dataPublisher = null;
+
     private Throttler() {
     }
 
@@ -75,28 +77,28 @@ public class Throttler {
         siddhiManager = new SiddhiManager();
 
         String commonExecutionPlan = "define stream RuleStream (rule string, v1 string, v2 string, messageID string);\n" +
-                "define stream GlobalResultStream (key string, isThrottled bool);\n" +
-                "\n" +
-                "@IndexBy('key') \n" +
-                "define table ThrottleTable (key string, isThrottled bool);\n" +
-                "\n" +
-                "/* COMMON QUERIES BEGIN \n" +
-                "These queries will not change as new rules are added/removed.\n" +
-                "*/\n" +
-                "from RuleStream join ThrottleTable\n" +
-                "on ThrottleTable.key == str:concat(RuleStream.rule, \"_\", RuleStream.v1, \"_\", RuleStream.v2)\n" +
-                "select RuleStream.rule, RuleStream.v1, RuleStream.v2, ThrottleTable.isThrottled, RuleStream.messageID\n" +
-                "insert into LocalResultStream;\n" +
-                "\n" +
-                "from RuleStream[not ((str:concat(RuleStream.rule, \"_\", RuleStream.v1, \"_\", RuleStream.v2) == ThrottleTable.key ) in ThrottleTable)]\n" +
-                "select str:concat(RuleStream.rule,\"MM\") as rule, RuleStream.v1, RuleStream.v2, false as isThrottled, RuleStream.messageID\n" +
-                "insert into LocalResultStream;\n" +
-                "/* COMMON QUERIES END */\n" +
-                "\n" +
-                "/* Updating Throttle Table with the outputs coming from the global CEP */\n" +
-                "from GlobalResultStream\n" +
-                "select *\n" +
-                "insert into ThrottleTable;";
+                                     "define stream GlobalResultStream (key string, isThrottled bool);\n" +
+                                     "\n" +
+                                     "@IndexBy('key') \n" +
+                                     "define table ThrottleTable (key string, isThrottled bool);\n" +
+                                     "\n" +
+                                     "/* COMMON QUERIES BEGIN \n" +
+                                     "These queries will not change as new rules are added/removed.\n" +
+                                     "*/\n" +
+                                     "from RuleStream join ThrottleTable\n" +
+                                     "on ThrottleTable.key == str:concat(RuleStream.rule, \"_\", RuleStream.v1, \"_\", RuleStream.v2)\n" +
+                                     "select RuleStream.rule, RuleStream.v1, RuleStream.v2, ThrottleTable.isThrottled, RuleStream.messageID\n" +
+                                     "insert into LocalResultStream;\n" +
+                                     "\n" +
+                                     "from RuleStream[not ((str:concat(RuleStream.rule, \"_\", RuleStream.v1, \"_\", RuleStream.v2) == ThrottleTable.key ) in ThrottleTable)]\n" +
+                                     "select RuleStream.rule as rule, RuleStream.v1, RuleStream.v2, false as isThrottled, RuleStream.messageID\n" +
+                                     "insert into LocalResultStream;\n" +
+                                     "/* COMMON QUERIES END */\n" +
+                                     "\n" +
+                                     "/* Updating Throttle Table with the outputs coming from the global CEP */\n" +
+                                     "from GlobalResultStream\n" +
+                                     "select *\n" +
+                                     "insert into ThrottleTable;";
 
         ExecutionPlanRuntime commonExecutionPlanRuntime = siddhiManager.createExecutionPlanRuntime(commonExecutionPlan);
 
@@ -121,6 +123,8 @@ public class Throttler {
 
         eventReceivingServer = new EventReceivingServer();
         eventReceivingServer.start(9611, 9711);
+
+        initDataPublisher();
     }
 
     /**
@@ -233,7 +237,6 @@ public class Throttler {
             resultMap.put(uniqueKey.toString(), result);
             getRequestStreamInputHandler().send(new Object[]{request.getParameter2(), request.getParameter1(), uniqueKey});
             boolean isThrottled = result.isThrottled();
-            System.out.println("[inside isThrottled] isThrottled: " + isThrottled);
             if (!isThrottled) {
                 sendToGlobalThrottler(new Object[]{request.getParameter2(), request.getParameter1(), uniqueKey});
             }
@@ -317,14 +320,22 @@ public class Throttler {
     }
 
     private void sendToGlobalThrottler(Object[] data) {
+        org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
+        event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.0"));
+        event.setMetaData(null);
+        event.setCorrelationData(null);
+        event.setPayloadData(new Object[]{data[0], data[1], data[2]});
+
+        dataPublisher.publish(event);
+    }
+
+    private void initDataPublisher() {
         AgentHolder.setConfigPath(DatabridgeServerUtil.getDataAgentConfigPath());
         DatabridgeServerUtil.setTrustStoreParams();
 
-        String hostName = "10.100.5.59";
-        DataPublisher dataPublisher = null;
         try {
             dataPublisher = new DataPublisher("Binary", "tcp://" + hostName + ":9621",
-                    "ssl://" + hostName + ":9721", "admin", "admin");
+                                              "ssl://" + hostName + ":9721", "admin", "admin");
         } catch (DataEndpointAgentConfigurationException e) {
             log.error(e.getMessage(), e);
         } catch (DataEndpointException e) {
@@ -336,13 +347,6 @@ public class Throttler {
         } catch (TransportException e) {
             log.error(e.getMessage(), e);
         }
-        org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
-        event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.0"));
-        event.setMetaData(null);
-        event.setCorrelationData(null);
-        event.setPayloadData(new Object[]{data[0], data[1], data[2]});
-
-        dataPublisher.publish(event);
     }
 
 }
