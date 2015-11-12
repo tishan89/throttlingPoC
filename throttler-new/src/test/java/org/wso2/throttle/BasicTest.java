@@ -20,8 +20,8 @@ public class BasicTest {
         throttler.addRule("rule1", "api1", "dilini");
         throttler.addRule("rule2", null, null);
 
-        for(int i=0; i<100000; i++) {
-            throttler.isThrottled(new Request("api1", "dilini"));
+        for(int i=0; i<10; i++) {
+            System.out.println(throttler.isThrottled(new Request("api1", "dilini")));
         }
 
         Thread.sleep(10000);
@@ -52,7 +52,7 @@ public class BasicTest {
             }
         };
 
-        long numIterations = 90000;
+        long numIterations = 20000;
         long startTimeMillis = System.currentTimeMillis();
         for (int i = 0; i < numIterations; i++) {
             executorService.submit(testRunnable);

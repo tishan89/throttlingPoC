@@ -128,7 +128,7 @@ public class EventReceivingServer {
                 }
                 for (Event event : eventList) {
                     try {
-                        throttler.getGlobalStreamInputHandler().send(event.getTimeStamp(), event.getPayloadData());
+                        throttler.getGlobalThrottleStreamInputHandler().send(event.getTimeStamp(), event.getPayloadData());
                     } catch (InterruptedException e) {
                         log.error("Interruption occurred while sending message to global inout stream. " + e.getMessage(), e);
                     }

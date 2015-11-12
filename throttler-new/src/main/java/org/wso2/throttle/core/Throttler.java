@@ -34,13 +34,15 @@ import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
-import org.wso2.siddhi.core.util.EventPrinter;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Utility class which does throttling.
@@ -54,15 +56,24 @@ public class Throttler {
     static Throttler throttler;
 
     private SiddhiManager siddhiManager;
-    private InputHandler ruleStreamInputHandler;
+    private InputHandler eligibilityStreamInputHandler;
     private InputHandler requestStreamInputHandler;
-    private InputHandler globalStreamInputHandler;
+    private InputHandler globalThrottleStreamInputHandler;
     private EventReceivingServer eventReceivingServer;
     private static Map<String, ResultContainer> resultMap = new ConcurrentHashMap<String, ResultContainer>();
     private int ruleCount = 0;
 
-    private static String hostName = "10.100.5.99";
+    private String hostName = "localhost";      //10.100.5.99
     private DataPublisher dataPublisher = null;
+
+    //perf test variables
+    private AtomicLong counter = new AtomicLong(0);
+    private AtomicLong lastCounter = new AtomicLong(0);
+    private AtomicLong lastIndex = new AtomicLong(0);
+    private AtomicBoolean calcInProgress = new AtomicBoolean(false);
+    private AtomicLong lastTime = new AtomicLong(System.currentTimeMillis());
+    private DecimalFormat decimalFormat = new DecimalFormat("#.##");
+    private int elapsedCount = 10;
 
     private Throttler() {
     }
@@ -80,55 +91,96 @@ public class Throttler {
     public void start() throws DataBridgeException, IOException, StreamDefinitionStoreException {
         siddhiManager = new SiddhiManager();
 
-        String commonExecutionPlan = "define stream RuleStream (rule string, v1 string, v2 string, messageID string);\n" +
-                                     "define stream GlobalResultStream (key string, isThrottled bool);\n" +
+        String commonExecutionPlan = "define stream EligibilityStream (rule string, messageID string, isEligible bool, key string, v1 string, v2 string);\n" +
+                                     "define stream GlobalThrottleStream (key string, isThrottled bool); \n" +
                                      "\n" +
-                                     "@IndexBy('key') \n" +
+                                     "@IndexBy('key')\n" +
                                      "define table ThrottleTable (key string, isThrottled bool);\n" +
                                      "\n" +
-                                     "/* COMMON QUERIES BEGIN \n" +
-                                     "These queries will not change as new rules are added/removed.\n" +
-                                     "*/\n" +
-                                     "from RuleStream join ThrottleTable\n" +
-                                     "on ThrottleTable.key == str:concat(RuleStream.rule, \"_\", RuleStream.v1, \"_\", RuleStream.v2)\n" +
-                                     "select RuleStream.rule, RuleStream.v1, RuleStream.v2, ThrottleTable.isThrottled, RuleStream.messageID\n" +
-                                     "insert into LocalResultStream;\n" +
+                                     "FROM EligibilityStream[isEligible==false]\n" +
+                                     "SELECT rule, messageID, false AS isThrottled\n" +
+                                     "INSERT INTO ThrottleStream;\n" +
                                      "\n" +
-                                     "from RuleStream[not ((str:concat(RuleStream.rule, \"_\", RuleStream.v1, \"_\", RuleStream.v2) == ThrottleTable.key ) in ThrottleTable)]\n" +
-                                     "select RuleStream.rule as rule, RuleStream.v1, RuleStream.v2, false as isThrottled, RuleStream.messageID\n" +
-                                     "insert into LocalResultStream;\n" +
-                                     "/* COMMON QUERIES END */\n" +
+                                     "FROM EligibilityStream[isEligible==true]\n" +
+                                     "SELECT rule, messageID, isEligible, key, v1, v2\n" +
+                                     "INSERT INTO EligibileStream;\n" +
                                      "\n" +
-                                     "/* Updating Throttle Table with the outputs coming from the global CEP */\n" +
-                                     "from GlobalResultStream\n" +
+                                     "FROM EligibileStream JOIN ThrottleTable\n" +
+                                     "\tON ThrottleTable.key == EligibileStream.key\n" +
+                                     "SELECT rule, messageID, ThrottleTable.isThrottled AS isThrottled\n" +
+                                     "INSERT INTO ThrottleStream;\n" +
+                                     "\n" +
+                                     "from EligibileStream[not ((EligibileStream.key == ThrottleTable.key ) in ThrottleTable)]\n" +
+                                     "select EligibileStream.rule as rule, EligibileStream.messageID, false AS isThrottled\n" +
+                                     "insert into ThrottleStream;" +
+                                     "\n" +
+                                     "from GlobalThrottleStream\n" +
                                      "select *\n" +
                                      "insert into ThrottleTable;";
 
         ExecutionPlanRuntime commonExecutionPlanRuntime = siddhiManager.createExecutionPlanRuntime(commonExecutionPlan);
 
         //add any callbacks
-        commonExecutionPlanRuntime.addCallback("LocalResultStream", new StreamCallback() {
+        commonExecutionPlanRuntime.addCallback("ThrottleStream", new StreamCallback() {
             @Override
             public void receive(Event[] events) {
-                EventPrinter.print(events);
+//                EventPrinter.print(events);
                 //Get corresponding result container and add the result
                 for (Event event : events) {
-                    resultMap.get(event.getData(4).toString()).addResult((Boolean) event.getData(3));
+                    resultMap.get(event.getData(1).toString()).addResult((Boolean) event.getData(2));
                 }
+                calcThroughput(events);
             }
         });
 
         //get and register inputHandler
-        setRuleStreamInputHandler(commonExecutionPlanRuntime.getInputHandler("RuleStream"));
-        setGlobalStreamInputHandler(commonExecutionPlanRuntime.getInputHandler("GlobalResultStream"));
+        setEligibilityStreamInputHandler(commonExecutionPlanRuntime.getInputHandler("EligibilityStream"));
+        setGlobalThrottleStreamInputHandler(commonExecutionPlanRuntime.getInputHandler("GlobalThrottleStream"));
 
         //start common EP Runtime
         commonExecutionPlanRuntime.start();
+        InputHandler inputHandler = commonExecutionPlanRuntime.getInputHandler("GlobalThrottleStream");
+        try {
+            inputHandler.send(new Object[]{"rule1",true});
+            inputHandler.send(new Object[]{"rule2_dilini",true});
+            inputHandler.send(new Object[]{"rule2_tishan",true});
+            inputHandler.send(new Object[]{"rule2_suho",true});
+            inputHandler.send(new Object[]{"rule2_user1",true});
+            inputHandler.send(new Object[]{"rule2_user2",true});
+            inputHandler.send(new Object[]{"rule2_user3",true});
+            inputHandler.send(new Object[]{"rule2_user4",true});
+            inputHandler.send(new Object[]{"rule2_user5",true});
+            inputHandler.send(new Object[]{"rule2_user6",true});
+            inputHandler.send(new Object[]{"rule2_user7",true});
 
+        } catch (InterruptedException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
         eventReceivingServer = new EventReceivingServer();
         eventReceivingServer.start(9611, 9711);
 
         initDataPublisher();
+    }
+
+    private void calcThroughput(Event[] events) {
+        long currentTime = System.currentTimeMillis();
+        long localCounter = counter.addAndGet(events.length);
+        long index = localCounter / elapsedCount;
+        if (lastIndex.get() != index) {
+            if (calcInProgress.compareAndSet(false, true)) {
+                //TODO Can be made thread safe further
+                lastIndex.set(index);
+                long currentWindowEventsReceived = localCounter - lastCounter.getAndSet(localCounter);
+                //log.info("Current time: " + System.currentTimeMillis() + ", Event received time: " + currentTime + ", Last calculation time: " + lastTime.get());
+                long elapsedTime = currentTime - lastTime.getAndSet(currentTime);
+                double throughputPerSecond = (((double) currentWindowEventsReceived) / elapsedTime) * 1000;
+
+                log.info("[" + Thread.currentThread().getName() + "] Received " + currentWindowEventsReceived + " sensor events in " + elapsedTime
+                         + " milliseconds with total throughput of " + decimalFormat.format(throughputPerSecond)
+                         + " events per second.");
+                calcInProgress.set(false);
+            }
+        }
     }
 
     /**
@@ -177,14 +229,14 @@ public class Throttler {
         ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (apiName string, userID string, messageID string); " +
                                                                                     query);
 
-        //Add call backs. Here, we take output events and insert into RuleStream
-        ruleRuntime.addCallback("RuleStream", new StreamCallback() {
+        //Add call backs. Here, we take output events and insert into EligibilityStream
+        ruleRuntime.addCallback("EligibilityStream", new StreamCallback() {
             @Override
             public void receive(Event[] events) {
                 try {
-                    getRuleStreamInputHandler().send(events);
+                    getEligibilityStreamInputHandler().send(events);
                 } catch (InterruptedException e) {
-                    log.error("Error occurred when publishing to RuleStream.", e);
+                    log.error("Error occurred when publishing to EligibilityStream.", e);
                 }
             }
         });
@@ -210,7 +262,7 @@ public class Throttler {
      */
     public boolean isThrottled(Request request) throws InterruptedException {
         UUID uniqueKey = UUID.randomUUID();
-        if (ruleCount == 0) {
+        if (ruleCount != 0) {
             ResultContainer result = new ResultContainer(ruleCount);
             resultMap.put(uniqueKey.toString(), result);
             getRequestStreamInputHandler().send(new Object[]{request.getParameter1(), request.getParameter2(),
@@ -251,12 +303,12 @@ public class Throttler {
         return template;
     }
 
-    private InputHandler getRuleStreamInputHandler() {
-        return ruleStreamInputHandler;
+    private InputHandler getEligibilityStreamInputHandler() {
+        return eligibilityStreamInputHandler;
     }
 
-    private void setRuleStreamInputHandler(InputHandler ruleStreamInputHandler) {
-        this.ruleStreamInputHandler = ruleStreamInputHandler;
+    private void setEligibilityStreamInputHandler(InputHandler eligibilityStreamInputHandler) {
+        this.eligibilityStreamInputHandler = eligibilityStreamInputHandler;
     }
 
     private InputHandler getRequestStreamInputHandler() {
@@ -267,12 +319,12 @@ public class Throttler {
         this.requestStreamInputHandler = requestStreamInputHandler;
     }
 
-    public InputHandler getGlobalStreamInputHandler() {
-        return globalStreamInputHandler;
+    public InputHandler getGlobalThrottleStreamInputHandler() {
+        return globalThrottleStreamInputHandler;
     }
 
-    private void setGlobalStreamInputHandler(InputHandler globalStreamInputHandler) {
-        this.globalStreamInputHandler = globalStreamInputHandler;
+    private void setGlobalThrottleStreamInputHandler(InputHandler globalThrottleStreamInputHandler) {
+        this.globalThrottleStreamInputHandler = globalThrottleStreamInputHandler;
     }
 
     private void sendToGlobalThrottler(Object[] data) {

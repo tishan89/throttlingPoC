@@ -37,13 +37,13 @@ public class TemplateStore {
 
     private TemplateStore(){
         //Populate templateIDToQuery map with default templates, rule1 and rule2
-        templateIDToQuery.put("rule1", "from RequestStream[apiName==$param1 and userID==$param2]\n" +
-                                       "select \"rule1\" as rule, \"\" as v1, \"\" as v2, messageID\n" +
-                                       "insert into RuleStream;");
+        templateIDToQuery.put("rule1", "FROM RequestStream\n" +
+                                       "SELECT \"rule1\" AS rule, messageID, (apiName==$param1 and userID==$param2) AS isEligible, \"rule1\" AS key, \"\" AS v1, \"\" AS v2\n" +
+                                       "INSERT INTO EligibilityStream;");
 
-        templateIDToQuery.put("rule2", "from RequestStream\n" +
-                                       "select \"rule2\" as rule, userID as v1, \"\" as v2, messageID\n" +
-                                       "insert into RuleStream;");
+        templateIDToQuery.put("rule2", "FROM RequestStream\n" +
+                                       "SELECT \"rule2\" AS rule, messageID, true AS isEligible, str:concat(\"rule2_\",RequestStream.userID) AS key, RequestStream.userID AS v1, \"\" AS v2\n" +
+                                       "INSERT INTO EligibilityStream;");
     }
 
     /**
