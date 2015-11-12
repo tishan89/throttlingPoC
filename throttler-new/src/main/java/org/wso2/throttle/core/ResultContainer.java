@@ -40,16 +40,12 @@ public class ResultContainer {
     }
 
     /**
-     * Wait for other threads to post results and then return results back.
+     * Wait for other threads to post results and then return aggregated result.
      *
      * @return isThrottled
      */
-    public Boolean isThrottled() {
-        try {
-            this.latch.await();
-        } catch (InterruptedException e) {
-            log.error(e.getMessage(), e);
-        }
+    public Boolean isThrottled() throws InterruptedException {
+        this.latch.await();
         for (Boolean isThrottled : results) {
             if (isThrottled) {
                 return isThrottled;
