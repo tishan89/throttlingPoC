@@ -63,4 +63,43 @@ public class BasicTest {
         System.out.println("Throughput " + (numIterations * 1000 / diff));
         System.out.println("Time in sec" + diff / 1000);
     }
+
+    @Test
+    public void testLatency() throws DataBridgeException, StreamDefinitionStoreException, IOException, InterruptedException {
+        int numOfThreads = 10;
+        final Throttler throttler = Throttler.getInstance();
+        throttler.start();
+        throttler.addRule("rule1", "api1", "dilini");
+        throttler.addRule("rule2", null, null);
+        final Request request = new Request("api1", "dilini");
+        ExecutorService executorService = Executors.newFixedThreadPool(numOfThreads);
+
+        Runnable testRunnable = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while (true) {
+                        throttler.isThrottled(request);
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+
+            }
+        };
+        //Flood the system
+        long numIterations = 10;
+        for (int i = 0; i < numIterations; i++) {
+            executorService.submit(testRunnable);
+        }
+
+        long startTimeMillis = System.currentTimeMillis();
+        for (int i = 0; i < 50; i++) {
+            throttler.isThrottled(request);
+        }
+        long diff = System.currentTimeMillis() - startTimeMillis;
+        System.out.println("Latency in ms: " + diff / 50.0);
+        executorService.shutdown();
+    }
 }
