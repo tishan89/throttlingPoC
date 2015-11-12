@@ -37,12 +37,12 @@ import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.io.IOException;
-import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Utility class which does throttling.
@@ -58,6 +58,7 @@ public class Throttler {
     private SiddhiManager siddhiManager;
     private InputHandler eligibilityStreamInputHandler;
     private InputHandler requestStreamInputHandler;
+    private List<InputHandler> requestStreamInputHandlerList = new ArrayList<InputHandler>();
     private InputHandler globalThrottleStreamInputHandler;
     private EventReceivingServer eventReceivingServer;
     private static Map<String, ResultContainer> resultMap = new ConcurrentHashMap<String, ResultContainer>();
@@ -65,15 +66,6 @@ public class Throttler {
 
     private String hostName = "localhost";      //10.100.5.99
     private DataPublisher dataPublisher = null;
-
-    //perf test variables
-    private AtomicLong counter = new AtomicLong(0);
-    private AtomicLong lastCounter = new AtomicLong(0);
-    private AtomicLong lastIndex = new AtomicLong(0);
-    private AtomicBoolean calcInProgress = new AtomicBoolean(false);
-    private AtomicLong lastTime = new AtomicLong(System.currentTimeMillis());
-    private DecimalFormat decimalFormat = new DecimalFormat("#.##");
-    private int elapsedCount = 10;
 
     private Throttler() {
     }
@@ -129,7 +121,6 @@ public class Throttler {
                 for (Event event : events) {
                     resultMap.get(event.getData(1).toString()).addResult((Boolean) event.getData(2));
                 }
-                calcThroughput(events);
             }
         });
 
@@ -162,26 +153,6 @@ public class Throttler {
         initDataPublisher();
     }
 
-    private void calcThroughput(Event[] events) {
-        long currentTime = System.currentTimeMillis();
-        long localCounter = counter.addAndGet(events.length);
-        long index = localCounter / elapsedCount;
-        if (lastIndex.get() != index) {
-            if (calcInProgress.compareAndSet(false, true)) {
-                //TODO Can be made thread safe further
-                lastIndex.set(index);
-                long currentWindowEventsReceived = localCounter - lastCounter.getAndSet(localCounter);
-                //log.info("Current time: " + System.currentTimeMillis() + ", Event received time: " + currentTime + ", Last calculation time: " + lastTime.get());
-                long elapsedTime = currentTime - lastTime.getAndSet(currentTime);
-                double throughputPerSecond = (((double) currentWindowEventsReceived) / elapsedTime) * 1000;
-
-                log.info("[" + Thread.currentThread().getName() + "] Received " + currentWindowEventsReceived + " sensor events in " + elapsedTime
-                         + " milliseconds with total throughput of " + decimalFormat.format(throughputPerSecond)
-                         + " events per second.");
-                calcInProgress.set(false);
-            }
-        }
-    }
 
     /**
      * This method lets a user to add a predefined rule (pre-defined as a template), specifying desired parameters.
@@ -242,7 +213,8 @@ public class Throttler {
         });
 
         //get and register input handler for RequestStream, so isThrottled() can use it.
-        setRequestStreamInputHandler(ruleRuntime.getInputHandler("RequestStream"));
+        requestStreamInputHandlerList.add(ruleRuntime.getInputHandler("RequestStream"));
+
         //Need to know current rule count to provide synchronous API
         ruleCount++;
         ruleRuntime.start();
@@ -265,8 +237,15 @@ public class Throttler {
         if (ruleCount != 0) {
             ResultContainer result = new ResultContainer(ruleCount);
             resultMap.put(uniqueKey.toString(), result);
-            getRequestStreamInputHandler().send(new Object[]{request.getParameter1(), request.getParameter2(),
-                    uniqueKey});
+            Iterator<InputHandler> hanlderList = requestStreamInputHandlerList.iterator();
+            while(hanlderList.hasNext())
+            {
+                InputHandler inputHandler = hanlderList.next();
+                inputHandler.send(new Object[]{request.getParameter1(), request.getParameter2(),
+                                               uniqueKey});
+            }
+//            getRequestStreamInputHandler().send(new Object[]{request.getParameter1(), request.getParameter2(),
+//                    uniqueKey});
             //Blocked call to return synchronous result
             boolean isThrottled = result.isThrottled();
             if (!isThrottled) { //Only send served request to global throttler
