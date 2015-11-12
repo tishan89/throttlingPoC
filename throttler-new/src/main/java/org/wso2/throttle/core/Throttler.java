@@ -110,6 +110,10 @@ public class Throttler {
                                      "SELECT rule, messageID, ThrottleTable.isThrottled AS isThrottled\n" +
                                      "INSERT INTO ThrottleStream;\n" +
                                      "\n" +
+                                     "from EligibileStream[not ((EligibileStream.key == ThrottleTable.key ) in ThrottleTable)]\n" +
+                                     "select EligibileStream.rule as rule, EligibileStream.messageID, false AS isThrottled\n" +
+                                     "insert into ThrottleStream;" +
+                                     "\n" +
                                      "from GlobalThrottleStream\n" +
                                      "select *\n" +
                                      "insert into ThrottleTable;";
@@ -135,7 +139,23 @@ public class Throttler {
 
         //start common EP Runtime
         commonExecutionPlanRuntime.start();
+        InputHandler inputHandler = commonExecutionPlanRuntime.getInputHandler("GlobalThrottleStream");
+        try {
+            inputHandler.send(new Object[]{"rule1",true});
+            inputHandler.send(new Object[]{"rule2_dilini",true});
+            inputHandler.send(new Object[]{"rule2_tishan",true});
+            inputHandler.send(new Object[]{"rule2_suho",true});
+            inputHandler.send(new Object[]{"rule2_user1",true});
+            inputHandler.send(new Object[]{"rule2_user2",true});
+            inputHandler.send(new Object[]{"rule2_user3",true});
+            inputHandler.send(new Object[]{"rule2_user4",true});
+            inputHandler.send(new Object[]{"rule2_user5",true});
+            inputHandler.send(new Object[]{"rule2_user6",true});
+            inputHandler.send(new Object[]{"rule2_user7",true});
 
+        } catch (InterruptedException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
         eventReceivingServer = new EventReceivingServer();
         eventReceivingServer.start(9611, 9711);
 
@@ -242,7 +262,7 @@ public class Throttler {
      */
     public boolean isThrottled(Request request) throws InterruptedException {
         UUID uniqueKey = UUID.randomUUID();
-        if (ruleCount == 0) {
+        if (ruleCount != 0) {
             ResultContainer result = new ResultContainer(ruleCount);
             resultMap.put(uniqueKey.toString(), result);
             getRequestStreamInputHandler().send(new Object[]{request.getParameter1(), request.getParameter2(),
