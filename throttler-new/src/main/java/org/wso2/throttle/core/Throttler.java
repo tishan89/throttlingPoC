@@ -38,6 +38,9 @@ import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -58,6 +61,7 @@ public class Throttler {
     private SiddhiManager siddhiManager;
     private InputHandler eligibilityStreamInputHandler;
     private InputHandler requestStreamInputHandler;
+    private List<InputHandler> requestStreamInputHandlerList = new ArrayList<InputHandler>();
     private InputHandler globalThrottleStreamInputHandler;
     private EventReceivingServer eventReceivingServer;
     private static Map<String, ResultContainer> resultMap = new ConcurrentHashMap<String, ResultContainer>();
@@ -242,7 +246,8 @@ public class Throttler {
         });
 
         //get and register input handler for RequestStream, so isThrottled() can use it.
-        setRequestStreamInputHandler(ruleRuntime.getInputHandler("RequestStream"));
+        requestStreamInputHandlerList.add(ruleRuntime.getInputHandler("RequestStream"));
+
         //Need to know current rule count to provide synchronous API
         ruleCount++;
         ruleRuntime.start();
@@ -265,8 +270,15 @@ public class Throttler {
         if (ruleCount != 0) {
             ResultContainer result = new ResultContainer(ruleCount);
             resultMap.put(uniqueKey.toString(), result);
-            getRequestStreamInputHandler().send(new Object[]{request.getParameter1(), request.getParameter2(),
-                    uniqueKey});
+            Iterator<InputHandler> hanlderList = requestStreamInputHandlerList.iterator();
+            while(hanlderList.hasNext())
+            {
+                InputHandler inputHandler = hanlderList.next();
+                inputHandler.send(new Object[]{request.getParameter1(), request.getParameter2(),
+                                               uniqueKey});
+            }
+//            getRequestStreamInputHandler().send(new Object[]{request.getParameter1(), request.getParameter2(),
+//                    uniqueKey});
             //Blocked call to return synchronous result
             boolean isThrottled = result.isThrottled();
             if (!isThrottled) { //Only send served request to global throttler
