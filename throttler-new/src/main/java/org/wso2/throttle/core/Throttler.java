@@ -45,7 +45,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Utility class which does throttling
+ * Utility class which does throttling.
+ * 1. Get an instance
+ * 2. Start
+ * 3. Add rules
+ * 4. Invoke isThrottled
  */
 public class Throttler {
     private static final Logger log = Logger.getLogger(Throttler.class);
