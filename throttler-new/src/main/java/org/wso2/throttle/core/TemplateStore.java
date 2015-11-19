@@ -26,7 +26,7 @@ import java.util.Map;
 public class TemplateStore {
     private static final Logger log = Logger.getLogger(TemplateStore.class);
     private static TemplateStore templateStore;
-    private Map<String, String> queryIDToQuery = new HashMap<String, String>();
+    private Map<String, String> templateIDToQuery = new HashMap<String, String>();
 
     public static synchronized TemplateStore getInstance(){
         if(templateStore == null){
@@ -36,18 +36,18 @@ public class TemplateStore {
     }
 
     private TemplateStore(){
-        //Populate queryIDToQuery map with default templates, rule1 and rule2
-        /**
-         * Default templates are,
-         * unlimited, gold, silver, bronze
-         */
-        queryIDToQuery.put("query1", "FROM RequestStream\n" +
-                                       "SELECT \"rule1\" AS rule, messageID, (apiName==$param1 and userID==$param2) AS isEligible, \"rule1\" AS key, \"\" AS v1, \"\" AS v2\n" +
-                                       "INSERT INTO EligibilityStream;");
+        //Populate templateIDToQuery map with default templates, bronze, silver and gold
+        templateIDToQuery.put("bronze", "FROM RequestStream\n" +
+                                        "SELECT \"bronze\" AS rule, messageId, (tier==\"bronze\") AS isEligible, key, \"\" AS v1, \"\" AS v2\n" +
+                                        "INSERT INTO EligibilityStream;");
 
-        queryIDToQuery.put("rule2", "FROM RequestStream\n" +
-                                       "SELECT \"rule2\" AS rule, messageID, true AS isEligible, str:concat(\"rule2_\",RequestStream.userID) AS key, RequestStream.userID AS v1, \"\" AS v2\n" +
-                                       "INSERT INTO EligibilityStream;");
+        templateIDToQuery.put("silver", "FROM RequestStream\n" +
+                                        "SELECT \"silver\" AS rule, messageId, (tier==\"silver\") AS isEligible, key, \"\" AS v1, \"\" AS v2\n" +
+                                        "INSERT INTO EligibilityStream;");
+
+        templateIDToQuery.put("gold", "FROM RequestStream\n" +
+                                      "SELECT \"gold\" AS rule, messageId, (tier==\"gold\") AS isEligible, key, \"\" AS v1, \"\" AS v2\n" +
+                                      "INSERT INTO EligibilityStream;");
     }
 
     /**
@@ -56,17 +56,17 @@ public class TemplateStore {
      * @param query         parameterized query
      */
     public void addTemplate(String templateID, String query){
-        if(queryIDToQuery.containsKey(templateID)){
-            log.warn("Replacing query for template ID: " + templateID + ". Existing query: " + queryIDToQuery.get(templateID)
+        if(templateIDToQuery.containsKey(templateID)){
+            log.warn("Replacing query for template ID: " + templateID + ". Existing query: " + templateIDToQuery.get(templateID)
                      + ". New query: " + query);
         }
-        queryIDToQuery.put(templateID, query);
+        templateIDToQuery.put(templateID, query);
     }
 
     public String getQueryTemplate(String templateID){
-        if(queryIDToQuery.isEmpty()){
+        if(templateIDToQuery.isEmpty()){
             return null;
         }
-        return queryIDToQuery.get(templateID);
+        return templateIDToQuery.get(templateID);
     }
 }

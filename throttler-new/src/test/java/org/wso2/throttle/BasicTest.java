@@ -21,10 +21,17 @@ public class BasicTest {
     @Test
     public void testRule1() throws InterruptedException, DataBridgeException, StreamDefinitionStoreException, IOException {
         Throttler throttler = Throttler.getInstance();
+        throttler.start();
+
+        throttler.addRule("bronze", null, null);
+        throttler.addRule("silver", null, null);
+        throttler.addRule("gold", null, null);
            long starttime = System.nanoTime();
-        //for(int i=0; i<1; i++) {
-            throttler.isThrottled(new Request("gold", "app1dilini"));
-        //}
+        Request request;
+        for(int i=0; i<1; i++) {
+            request = new Request("gold", "somekey", "", "");
+            throttler.isThrottled(request);
+        }
         long end = System.nanoTime();
         System.out.println(end - starttime);
 
@@ -37,7 +44,11 @@ public class BasicTest {
             IOException {
         int numOfThreads = 20;
         final Throttler throttler = Throttler.getInstance();
-        final Request request = new Request("gold", "app1dilini");
+        throttler.start();
+        throttler.addRule("bronze", null, null);
+        throttler.addRule("silver", null, null);
+        throttler.addRule("gold", null, null);
+        final Request request = new Request("gold", "somekey", "", "");
         ExecutorService executorService = Executors.newFixedThreadPool(numOfThreads);
 
         long numTasks = 900000;   //700000

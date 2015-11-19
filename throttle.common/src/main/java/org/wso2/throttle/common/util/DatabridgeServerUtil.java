@@ -99,7 +99,7 @@ public class DatabridgeServerUtil {
 
     public static StreamDefinition loadStream() {
         File fileEntry = new File(".." + File.separator + "throttle.common" + File.separator + "src" + File.separator + "main" + File.separator +
-                "resources" + File.separator + "ResultStream_1.0.0.json").getAbsoluteFile();
+                "resources" + File.separator + "GlobalThrottleStream_1.0.0.json").getAbsoluteFile();
         BufferedReader bufferedReader = null;
         StreamDefinition streamDefinition = null;
         StringBuilder stringBuilder = new StringBuilder();

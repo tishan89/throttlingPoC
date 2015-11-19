@@ -24,10 +24,12 @@ package org.wso2.throttle.core;
 public class Request {
     private String tier;
     private String key;
+    private String v1;
+    private String v2;
 
-    public Request(String tier, String key){
-        this.key = key;
+    public Request(String tier, String key, String v1, String v2){
         this.tier = tier;
+        this.key = key;
     }
 
     public String getTier() {
@@ -42,7 +44,23 @@ public class Request {
         return key;
     }
 
-    public void setKey(String key) {
-        this.key = key;
+    public void setKey(String apiName) {
+        this.key = apiName;
+    }
+
+    public String getV2() {
+        return v2;
+    }
+
+    public void setV2(String v2) {
+        this.v2 = v2;
+    }
+
+    public String getV1() {
+        return v1;
+    }
+
+    public void setV1(String v1) {
+        this.v1 = v1;
     }
 }
