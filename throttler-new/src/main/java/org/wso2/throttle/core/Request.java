@@ -22,27 +22,27 @@ package org.wso2.throttle.core;
  * Request which is sent to Throttler.
  */
 public class Request {
-    private String parameter1;
-    private String parameter2;
+    private String tier;
+    private String key;
 
-    public Request(String apiName, String userId){
-        this.parameter1 = apiName;
-        this.parameter2 = userId;
+    public Request(String tier, String key){
+        this.key = key;
+        this.tier = tier;
     }
 
-    public String getParameter1() {
-        return parameter1;
+    public String getTier() {
+        return tier;
     }
 
-    public void setParameter1(String parameter1) {
-        this.parameter1 = parameter1;
+    public void setTier(String tier) {
+        this.tier = tier;
     }
 
-    public String getParameter2() {
-        return parameter2;
+    public String getKey() {
+        return key;
     }
 
-    public void setParameter2(String apiName) {
-        this.parameter2 = apiName;
+    public void setKey(String key) {
+        this.key = key;
     }
 }
