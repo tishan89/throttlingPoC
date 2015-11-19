@@ -34,6 +34,7 @@ import org.wso2.carbon.databridge.core.internal.authentication.AuthenticationHan
 import org.wso2.carbon.databridge.receiver.binary.conf.BinaryDataReceiverConfiguration;
 import org.wso2.carbon.databridge.receiver.binary.internal.BinaryDataReceiver;
 import org.wso2.carbon.user.api.UserStoreException;
+import org.wso2.siddhi.core.util.EventPrinter;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.io.IOException;
@@ -49,7 +50,7 @@ public class EventReceivingServer {
     private BinaryDataReceiver binaryDataReceiver;
     private InMemoryStreamDefinitionStore streamDefinitionStore;
     private AtomicInteger numberOfEventsReceived = new AtomicInteger(0);
-    private Throttler throttler = Throttler.getInstance();
+    private Throttler throttler;
 
 
     public void addStreamDefinition(StreamDefinition streamDefinition, int tenantId)
@@ -71,6 +72,8 @@ public class EventReceivingServer {
     }
 
     public void start(int tcpPort, int securePort) throws DataBridgeException, IOException, StreamDefinitionStoreException {
+        throttler = Throttler.getInstance();
+
         DatabridgeServerUtil.setKeyStoreParams();
         DatabridgeServerUtil.setTrustStoreParams();
         streamDefinitionStore = getStreamDefinitionStore();
@@ -128,17 +131,19 @@ public class EventReceivingServer {
                 }
                 for (Event event : eventList) {
                     try {
-                        throttler.getGlobalThrottleStreamInputHandler().send(event.getTimeStamp(), event.getPayloadData());
+                        throttler.getGlobalThrottleStreamInputHandler().send(event.getTimeStamp(),
+                                event.getPayloadData());
                     } catch (InterruptedException e) {
                         log.error("Interruption occurred while sending message to global inout stream. " + e.getMessage(), e);
                     }
+
                 }
             }
 
         });
 
         binaryDataReceiver.start();
-        log.info("Test Server Started");
+        log.info("Event Receiving Server Started");
     }
 
     public int getNumberOfEventsReceived() {
