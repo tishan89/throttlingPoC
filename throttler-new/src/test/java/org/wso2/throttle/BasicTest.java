@@ -19,29 +19,32 @@ public class BasicTest {
     private AtomicLong numBatches = new AtomicLong(0);
 
     @Test
-    public void testRule1() throws InterruptedException, DataBridgeException, StreamDefinitionStoreException, IOException {
+    public void testRule1()
+            throws InterruptedException, DataBridgeException, StreamDefinitionStoreException,
+                   IOException {
         Throttler throttler = Throttler.getInstance();
         throttler.start();
 
         throttler.addRule("bronze", null, null);
         throttler.addRule("silver", null, null);
         throttler.addRule("gold", null, null);
-           long starttime = System.nanoTime();
+        long startTime = System.nanoTime();
         Request request;
-        for(int i=0; i<1; i++) {
+        for (int i = 0; i < 1; i++) {
             request = new Request("gold", "somekey", "", "");
             throttler.isThrottled(request);
         }
-        long end = System.nanoTime();
-        System.out.println(end - starttime);
+        long endTime = System.nanoTime();
+        System.out.println(endTime - startTime);
 
         Thread.sleep(10000);
         throttler.stop();
     }
 
     @Test
-    public void testPerformance() throws InterruptedException, DataBridgeException, StreamDefinitionStoreException,
-            IOException {
+    public void testPerformance()
+            throws InterruptedException, DataBridgeException, StreamDefinitionStoreException,
+                   IOException {
         int numOfThreads = 20;
         final Throttler throttler = Throttler.getInstance();
         throttler.start();
@@ -60,7 +63,7 @@ public class BasicTest {
         executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
         long diff = System.currentTimeMillis() - startTimeMillis;
         System.out.println("Throughput " + (numTasks * 1000 / diff));
-        System.out.println("Time in milli sec " + diff );
+        System.out.println("Time in milli sec " + diff);
         System.out.println("Latency " + totalLatency.get() / numBatches.get());
     }
 
@@ -68,7 +71,7 @@ public class BasicTest {
         Throttler throttler = null;
         Request request = null;
 
-        TaskSubmitter(Throttler throttler, Request request){
+        TaskSubmitter(Throttler throttler, Request request) {
             this.throttler = throttler;
             this.request = request;
         }
@@ -81,7 +84,7 @@ public class BasicTest {
                 long end = System.nanoTime();
                 requestsCompleted.incrementAndGet();
                 totalDelay.addAndGet(end - startTime);
-                if(requestsCompleted.get() % 1000 == 0) {
+                if (requestsCompleted.get() % 1000 == 0) {
                     totalLatency.addAndGet(totalDelay.get() / 1000);
                     numBatches.incrementAndGet();
                     totalDelay.set(0);

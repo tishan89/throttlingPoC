@@ -34,6 +34,7 @@ import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
+import org.wso2.siddhi.core.util.EventPrinter;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.io.IOException;
@@ -83,14 +84,7 @@ public class Throttler {
     public void start() throws DataBridgeException, IOException, StreamDefinitionStoreException {
         siddhiManager = new SiddhiManager();
 
-        String commonExecutionPlan = "/* Enter a unique ExecutionPlan */\n" +
-                                     "@Plan:name('ExecutionPlan')\n" +
-                                     "\n" +
-                                     "/* Enter a unique description for ExecutionPlan */\n" +
-                                     "-- @Plan:description('ExecutionPlan')\n" +
-                                     "\n" +
-                                     "/* define streams/tables and write queries here ... */\n" +
-                                     "define stream EligibilityStream (rule string, messageID string, isEligible bool, key string, v1 string, v2 string);\n" +
+        String commonExecutionPlan = "define stream EligibilityStream (rule string, messageID string, isEligible bool, key string, v1 string, v2 string);\n" +
                                      "define stream GlobalThrottleStream (key string, isThrottled bool); \n" +
                                      "\n" +
                                      "@IndexBy('key')\n" +
@@ -125,7 +119,7 @@ public class Throttler {
         commonExecutionPlanRuntime.addCallback("ThrottleStream", new StreamCallback() {
             @Override
             public void receive(Event[] events) {
-//                EventPrinter.print(events);
+                EventPrinter.print(events);
                 //Get corresponding result container and add the result
                 for (Event event : events) {
                     resultMap.get(event.getData(1).toString()).addResult((Boolean) event.getData(2));
@@ -143,7 +137,7 @@ public class Throttler {
         //For testing purpose: A quick workaround to populate Throttle Table
         InputHandler inputHandler = getGlobalThrottleStreamInputHandler();
         try {
-            inputHandler.send(new Object[]{"rule1",true});
+            inputHandler.send(new Object[]{"somekey",true});
             inputHandler.send(new Object[]{"rule2_dilini",true});
             inputHandler.send(new Object[]{"rule2_tishan",true});
             inputHandler.send(new Object[]{"rule2_suho",true});
@@ -259,7 +253,7 @@ public class Throttler {
             //Blocked call to return synchronous result
             boolean isThrottled = result.isThrottled();
             if (!isThrottled) { //Only send served request to global throttler
-                sendToGlobalThrottler(new Object[]{request.getTier(), request.getKey(), uniqueKey});
+                sendToGlobalThrottler(new Object[]{uniqueKey, request.getTier(), request.getKey(), request.getV1(), request.getV2()});
             }
             resultMap.remove(uniqueKey);
             return isThrottled;
@@ -321,7 +315,7 @@ public class Throttler {
         event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.1"));
         event.setMetaData(null);
         event.setCorrelationData(null);
-        event.setPayloadData(new Object[]{data[0], data[1], data[2]});
+        event.setPayloadData(new Object[]{data[0], data[1], data[2], data[3], data[4]});
 
         dataPublisher.publish(event);
     }
