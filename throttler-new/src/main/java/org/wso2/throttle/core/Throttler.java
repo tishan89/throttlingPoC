@@ -103,8 +103,8 @@ public class Throttler {
                                      "SELECT rule, messageID, ThrottleTable.isThrottled AS isThrottled\n" +
                                      "INSERT INTO ThrottleStream;\n" +
                                      "\n" +
-                                     "from EligibileStream[not ((EligibileStream.key == ThrottleTable.key ) in ThrottleTable)]\n" +
-                                     "select EligibileStream.rule as rule, EligibileStream.messageID, false AS isThrottled\n" +
+                                     "from EligibileStream[not ((str:concat(EligibileStream.key,\"_\",EligibileStream.v1,\"_\",EligibileStream.v2) == ThrottleTable.key ) in ThrottleTable)]\n" +
+                                     "select EligibileStream.rule AS rule, EligibileStream.messageID, false AS isThrottled\n" +
                                      "insert into ThrottleStream;\n" +
                                      "\n" +
                                      "from GlobalThrottleStream\n" +
