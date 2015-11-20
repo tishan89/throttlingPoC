@@ -34,7 +34,6 @@ import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
-import org.wso2.siddhi.core.util.EventPrinter;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.io.IOException;
@@ -119,7 +118,7 @@ public class Throttler {
         commonExecutionPlanRuntime.addCallback("ThrottleStream", new StreamCallback() {
             @Override
             public void receive(Event[] events) {
-                EventPrinter.print(events);
+//                EventPrinter.print(events);
                 //Get corresponding result container and add the result
                 for (Event event : events) {
                     resultMap.get(event.getData(1).toString()).addResult((Boolean) event.getData(2));
