@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Class which does throttling.
@@ -133,24 +134,6 @@ public class Throttler {
         //start common EP Runtime
         commonExecutionPlanRuntime.start();
 
-        //For testing purpose: A quick workaround to populate Throttle Table
-        InputHandler inputHandler = getGlobalThrottleStreamInputHandler();
-        try {
-            inputHandler.send(new Object[]{"somekey",true});
-            inputHandler.send(new Object[]{"rule2_dilini",true});
-            inputHandler.send(new Object[]{"rule2_tishan",true});
-            inputHandler.send(new Object[]{"rule2_suho",true});
-            inputHandler.send(new Object[]{"rule2_user1",true});
-            inputHandler.send(new Object[]{"rule2_user2",true});
-            inputHandler.send(new Object[]{"rule2_user3",true});
-            inputHandler.send(new Object[]{"rule2_user4",true});
-            inputHandler.send(new Object[]{"rule2_user5",true});
-            inputHandler.send(new Object[]{"rule2_user6",true});
-            inputHandler.send(new Object[]{"rule2_user7",true});
-
-        } catch (InterruptedException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        }
         eventReceivingServer = new EventReceivingServer();
         eventReceivingServer.start(9611, 9711);
 
@@ -247,8 +230,6 @@ public class Throttler {
                 InputHandler inputHandler = hanlderList.next();
                 inputHandler.send(new Object[]{uniqueKey, request.getTier(), request.getKey(), request.getV1(), request.getV2()});
             }
-//            getRequestStreamInputHandler().send(new Object[]{request.getTier(), request.getKey(),
-//                    uniqueKey});
             //Blocked call to return synchronous result
             boolean isThrottled = result.isThrottled();
             if (!isThrottled) { //Only send served request to global throttler
@@ -316,7 +297,7 @@ public class Throttler {
         event.setCorrelationData(null);
         event.setPayloadData(new Object[]{data[0], data[1], data[2], data[3], data[4]});
 
-        dataPublisher.publish(event);
+        dataPublisher.tryPublish(event);
     }
 
     private void initDataPublisher() {
