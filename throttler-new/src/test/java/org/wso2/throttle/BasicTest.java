@@ -1,5 +1,6 @@
 package org.wso2.throttle;
 
+import org.apache.log4j.Logger;
 import org.junit.Test;
 import org.wso2.carbon.databridge.core.exception.DataBridgeException;
 import org.wso2.carbon.databridge.core.exception.StreamDefinitionStoreException;
@@ -7,16 +8,16 @@ import org.wso2.throttle.core.Request;
 import org.wso2.throttle.core.Throttler;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class BasicTest {
-    private AtomicLong requestsCompleted = new AtomicLong(0);
-    private static AtomicLong totalDelay = new AtomicLong(0);
-    private AtomicLong totalLatency = new AtomicLong(0);
-    private AtomicLong numBatches = new AtomicLong(0);
+    private static final Logger log = Logger.getLogger(BasicTest.class);
 
     @Test
     public void testRule1()
@@ -35,7 +36,7 @@ public class BasicTest {
             throttler.isThrottled(request);
         }
         long endTime = System.nanoTime();
-        System.out.println(endTime - startTime);
+        log.info(endTime - startTime);
 
         Thread.sleep(10000);
         throttler.stop();
@@ -44,34 +45,75 @@ public class BasicTest {
     @Test
     public void testPerformance()
             throws InterruptedException, DataBridgeException, StreamDefinitionStoreException,
-                   IOException {
-        int numOfThreads = 20;
+            IOException {
+        int numOfThreads = 30;
+        long numTasks = 800000;
         final Throttler throttler = Throttler.getInstance();
+        final Request request = new Request("gold", "somekey", "", "");
+        ThrottlingTask task = new ThrottlingTask(throttler, request);
+        ExecutorService executorService = Executors.newFixedThreadPool(numOfThreads);
+
         throttler.start();
         throttler.addRule("bronze", null, null);
         throttler.addRule("silver", null, null);
         throttler.addRule("gold", null, null);
-        final Request request = new Request("gold", "somekey", "", "");
-        ExecutorService executorService = Executors.newFixedThreadPool(numOfThreads);
 
-        long numTasks = 900000;   //700000
         long startTimeMillis = System.currentTimeMillis();
         for (int i = 0; i < numTasks; i++) {
-            executorService.submit(new TaskSubmitter(throttler, request));
+            executorService.submit(task);
         }
+
         executorService.shutdown();
         executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+
         long diff = System.currentTimeMillis() - startTimeMillis;
-        System.out.println("Throughput " + (numTasks * 1000 / diff));
-        System.out.println("Time in milli sec " + diff);
-        System.out.println("Latency " + totalLatency.get() / numBatches.get());
+        log.info("Throughput " + (numTasks * 1000 / diff));
+        log.info("Time in milli sec " + diff);
     }
 
-    class TaskSubmitter implements Runnable {
+    @Test
+    public void testLatency() throws DataBridgeException, StreamDefinitionStoreException, IOException, InterruptedException {
+        int numOfThreads = 3;
+        int numTasks = 800000;
+        int iterations = 10000;
+        List<Long> resultList = new ArrayList<Long>(numTasks);
+        final Request request = new Request("gold", "somekey", "", "");
+        final Throttler throttler = Throttler.getInstance();
+        ThrottlingTask task = new ThrottlingTask(throttler, request);
+        ExecutorService executorService = Executors.newFixedThreadPool(numOfThreads);
+
+        throttler.start();
+        throttler.addRule("bronze", null, null);
+        throttler.addRule("silver", null, null);
+        throttler.addRule("gold", null, null);
+
+        //flood the system
+        for (int i = 0; i < numTasks; i++) {
+            executorService.submit(task);
+        }
+
+        for (int j = 0; j < iterations; j++) {
+            long startTime = System.nanoTime();
+            throttler.isThrottled(request);
+            resultList.add(System.nanoTime() - startTime);
+        }
+
+        executorService.shutdown();
+        Collections.sort(resultList);
+        double aggregateLatency = 0.0;
+        for (Long latency : resultList) {
+            aggregateLatency = +latency;
+        }
+        log.info("Avg Latency(ns) : " + aggregateLatency / iterations);
+        log.info("Max Latency(ns) : " + resultList.get(resultList.size() - 1));
+        log.info("Min Latency(ns) : " + resultList.get(0));
+    }
+
+    class ThrottlingTask implements Runnable {
         Throttler throttler = null;
         Request request = null;
 
-        TaskSubmitter(Throttler throttler, Request request) {
+        ThrottlingTask(Throttler throttler, Request request) {
             this.throttler = throttler;
             this.request = request;
         }
@@ -79,16 +121,7 @@ public class BasicTest {
         @Override
         public void run() {
             try {
-                long startTime = System.nanoTime();
                 throttler.isThrottled(request);
-                long end = System.nanoTime();
-                requestsCompleted.incrementAndGet();
-                totalDelay.addAndGet(end - startTime);
-                if (requestsCompleted.get() % 1000 == 0) {
-                    totalLatency.addAndGet(totalDelay.get() / 1000);
-                    numBatches.incrementAndGet();
-                    totalDelay.set(0);
-                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
