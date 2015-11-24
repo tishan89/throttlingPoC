@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class BasicTest {
     private static final Logger log = Logger.getLogger(BasicTest.class);
@@ -68,6 +67,7 @@ public class BasicTest {
 
         long diff = System.currentTimeMillis() - startTimeMillis;
         log.info("Throughput " + (numTasks * 1000 / diff));
+        log.info("Latency " + (diff * 1.0 / numTasks + " ms"));
         log.info("Time in milli sec " + diff);
     }
 
