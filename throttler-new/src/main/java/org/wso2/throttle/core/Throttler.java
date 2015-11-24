@@ -228,16 +228,18 @@ public class Throttler {
         if (ruleCount != 0) {
             ResultContainer result = new ResultContainer(ruleCount);
             resultMap.put(uniqueKey.toString(), result);
+            Object[] output = new Object[]{uniqueKey, request.getTier(), request.getKey(), request.getV1(),
+                    request.getV2()};
             Iterator<InputHandler> hanlderList = requestStreamInputHandlerList.iterator();
             while(hanlderList.hasNext())
             {
                 InputHandler inputHandler = hanlderList.next();
-                inputHandler.send(new Object[]{uniqueKey, request.getTier(), request.getKey(), request.getV1(), request.getV2()});
+                inputHandler.send(output);
             }
             //Blocked call to return synchronous result
             boolean isThrottled = result.isThrottled();
             if (!isThrottled) { //Only send served request to global throttler
-                sendToGlobalThrottler(new Object[]{uniqueKey, request.getTier(), request.getKey(), request.getV1(), request.getV2()});
+                sendToGlobalThrottler(output);
             }
             resultMap.remove(uniqueKey);
             return isThrottled;
@@ -295,14 +297,13 @@ public class Throttler {
     }
 
     private void sendToGlobalThrottler(Object[] data) {
-        executorService.submit(new PublishingTask(data));
-        /*org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
+        org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
         event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.2"));
         event.setMetaData(null);
         event.setCorrelationData(null);
-        event.setPayloadData(new Object[]{data[0], data[1], data[2], data[3], data[4]});
+        event.setPayloadData(data);
 
-        dataPublisher.tryPublish(event);*/
+        dataPublisher.tryPublish(event);
     }
 
     private void initDataPublisher() {
@@ -326,25 +327,6 @@ public class Throttler {
 
         executorService = Executors.newFixedThreadPool(10);
 
-    }
-
-    class PublishingTask implements Runnable {
-        Object[] data;
-
-        PublishingTask(Object[] data) {
-            this.data = data;
-        }
-
-        @Override
-        public void run() {
-            org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
-            event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.1"));
-            event.setMetaData(null);
-            event.setCorrelationData(null);
-            event.setPayloadData(new Object[]{data[0], data[1], data[2], data[3], data[4]});
-
-            dataPublisher.tryPublish(event);
-        }
     }
 
 }
