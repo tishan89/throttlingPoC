@@ -43,6 +43,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -67,6 +70,7 @@ public class Throttler {
 
     private String hostName = "localhost";      //10.100.5.99
     private DataPublisher dataPublisher = null;
+    ExecutorService executorService = null;
 
     private Throttler() {
     }
@@ -291,13 +295,14 @@ public class Throttler {
     }
 
     private void sendToGlobalThrottler(Object[] data) {
-        org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
-        event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.1"));
+        executorService.submit(new PublishingTask(data));
+        /*org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
+        event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.2"));
         event.setMetaData(null);
         event.setCorrelationData(null);
         event.setPayloadData(new Object[]{data[0], data[1], data[2], data[3], data[4]});
 
-        dataPublisher.tryPublish(event);
+        dataPublisher.tryPublish(event);*/
     }
 
     private void initDataPublisher() {
@@ -317,6 +322,28 @@ public class Throttler {
             log.error(e.getMessage(), e);
         } catch (TransportException e) {
             log.error(e.getMessage(), e);
+        }
+
+        executorService = Executors.newFixedThreadPool(10);
+
+    }
+
+    class PublishingTask implements Runnable {
+        Object[] data;
+
+        PublishingTask(Object[] data) {
+            this.data = data;
+        }
+
+        @Override
+        public void run() {
+            org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
+            event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.1"));
+            event.setMetaData(null);
+            event.setCorrelationData(null);
+            event.setPayloadData(new Object[]{data[0], data[1], data[2], data[3], data[4]});
+
+            dataPublisher.tryPublish(event);
         }
     }
 
