@@ -33,7 +33,7 @@ public class DatabridgeServerUtil {
     public static final String LOCAL_HOST = "localhost";
 
     public static void setTrustStoreParams() {
-        File filePath = new File(".." + File.separator + "throttle-common" + File.separator + "src" + File.separator
+        File filePath = new File(".." + File.separator + "throttler-common" + File.separator + "src" + File.separator
                 + "main" + File.separator +
                 "resources");
         if (!filePath.exists()) {
@@ -52,7 +52,7 @@ public class DatabridgeServerUtil {
     }
 
     public static void setKeyStoreParams() {
-        File filePath = new File(".." + File.separator + "throttle-common" + File.separator + "src" + File.separator
+        File filePath = new File(".." + File.separator + "throttler-common" + File.separator + "src" + File.separator
                 + "main" + File.separator +
                 "resources");
         if (!filePath.exists()) {
@@ -70,7 +70,7 @@ public class DatabridgeServerUtil {
     }
 
     public static String getDataAgentConfigPath() {
-        File filePath = new File(".." + File.separator + "throttle-common" + File.separator + "src" + File.separator
+        File filePath = new File(".." + File.separator + "throttler-common" + File.separator + "src" + File.separator
                 + "main" + File.separator +
                 "resources");
         if (!filePath.exists()) {
@@ -86,7 +86,7 @@ public class DatabridgeServerUtil {
     }
 
     public static String getDataBridgeConfigPath() {
-        File filePath = new File(".." + File.separator + "throttle-common" + File.separator + "src" + File.separator
+        File filePath = new File(".." + File.separator + "throttler-common" + File.separator + "src" + File.separator
                 + "main" + File.separator +
                 "resources");
         if (!filePath.exists()) {
@@ -102,7 +102,7 @@ public class DatabridgeServerUtil {
     }
 
     public static StreamDefinition loadStream() {
-        File fileEntry = new File(".." + File.separator + "throttle-common" + File.separator + "src" + File.separator
+        File fileEntry = new File(".." + File.separator + "throttler-common" + File.separator + "src" + File.separator
                 + "main" + File.separator +
                 "resources" + File.separator + "GlobalThrottleStream_1.0.0.json").getAbsoluteFile();
         BufferedReader bufferedReader = null;

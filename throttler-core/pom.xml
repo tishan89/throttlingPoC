@@ -38,7 +38,7 @@
         </dependency>
         <dependency>
             <groupId>org.wso2.throttle</groupId>
-            <artifactId>throttle.common</artifactId>
+            <artifactId>throttler-common</artifactId>
             <version>${throttler.version}</version>
         </dependency>
         <dependency>
