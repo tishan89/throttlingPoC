@@ -119,12 +119,10 @@ public class Throttler {
 
         ExecutionPlanRuntime commonExecutionPlanRuntime = siddhiManager.createExecutionPlanRuntime(commonExecutionPlan);
 
-        //add any callbacks
+        //add callback to get local throttling result and add it to ResultContainer
         commonExecutionPlanRuntime.addCallback("ThrottleStream", new StreamCallback() {
             @Override
             public void receive(Event[] events) {
-//                EventPrinter.print(events);
-                //Get corresponding result container and add the result
                 for (Event event : events) {
                     resultMap.get(event.getData(1).toString()).addResult((Boolean) event.getData(2));
                 }
@@ -135,12 +133,13 @@ public class Throttler {
         setEligibilityStreamInputHandler(commonExecutionPlanRuntime.getInputHandler("EligibilityStream"));
         setGlobalThrottleStreamInputHandler(commonExecutionPlanRuntime.getInputHandler("GlobalThrottleStream"));
 
-        //start common EP Runtime
         commonExecutionPlanRuntime.start();
 
+        //starts binary server to receive events from global CEP instance
         eventReceivingServer = new EventReceivingServer();
         eventReceivingServer.start(9611, 9711);
 
+        //initialize binary data publisher to send requests to global CEP instance
         initDataPublisher();
     }
 
@@ -154,12 +153,11 @@ public class Throttler {
      */
     public synchronized void addRule(String templateID, String parameter1, String parameter2) {
         deployRuleToLocalCEP(templateID, parameter1, parameter2);
-//        deployRuleToGlobalCEP(templateID, parameter1, parameter2);  //todo: test after doing perf tests.
+        //deployRuleToGlobalCEP(templateID, parameter1, parameter2);
     }
 
     //todo: this method has not being implemented completely. Will be done after doing perf tests.
     private void deployRuleToGlobalCEP(String templateID, String parameter1, String parameter2){
-        //get rule-query from templateIDToQuery map
         String queryTemplate = GlobalTemplateStore.getInstance().getQueryTemplate(templateID);
         if (queryTemplate == null) {
             throw new RuntimeException("No query template exist for ID: " + templateID + " in Global Template Store.");
@@ -168,17 +166,14 @@ public class Throttler {
         //replace parameters in the queries, if required.
         String queries = replaceParamsInTemplate(queryTemplate, parameter1, parameter2);
 
-        //create execution plan runtime with the query created above
         ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (messageId string, tier string, key string, v1 string, v2 string); " +
                                                                                     queries);
 
-        //get global CEP client
         GlobalCEPClient globalCEPClient = new GlobalCEPClient();
         globalCEPClient.deployExecutionPlan(queries);
     }
 
     private void deployRuleToLocalCEP(String templateID, String parameter1, String parameter2){
-        //get rule-query from templateIDToQuery map
         String queryTemplate = TemplateStore.getInstance().getQueryTemplate(templateID);
         if (queryTemplate == null) {
             throw new RuntimeException("No query template exist for ID: " + templateID + " in Local Template Store.");
@@ -187,7 +182,6 @@ public class Throttler {
         //replace parameters in the query, if required.
         String query = replaceParamsInTemplate(queryTemplate, parameter1, parameter2);
 
-        //create execution plan runtime with the query created above
         ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (messageId string, tier string, key string, v1 string, v2 string); " +
                                                                                     query);
 
@@ -230,15 +224,15 @@ public class Throttler {
             resultMap.put(uniqueKey.toString(), result);
             Object[] output = new Object[]{uniqueKey, request.getTier(), request.getKey(), request.getV1(),
                     request.getV2()};
-            Iterator<InputHandler> hanlderList = requestStreamInputHandlerList.iterator();
-            while(hanlderList.hasNext())
+            Iterator<InputHandler> handlerList = requestStreamInputHandlerList.iterator();
+            while(handlerList.hasNext())
             {
-                InputHandler inputHandler = hanlderList.next();
+                InputHandler inputHandler = handlerList.next();
                 inputHandler.send(output);
             }
             //Blocked call to return synchronous result
             boolean isThrottled = result.isThrottled();
-            if (!isThrottled) { //Only send served request to global throttler
+            if (!isThrottled) {                                           //Only send served request to global throttler
                 sendToGlobalThrottler(output);
             }
             resultMap.remove(uniqueKey);
