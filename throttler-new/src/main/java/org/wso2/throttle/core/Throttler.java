@@ -18,6 +18,7 @@
 
 package org.wso2.throttle.core;
 
+import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.log4j.Logger;
 import org.wso2.carbon.databridge.agent.AgentHolder;
 import org.wso2.carbon.databridge.agent.DataPublisher;
@@ -37,6 +38,11 @@ import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -45,8 +51,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Class which does throttling.
@@ -57,6 +61,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class Throttler {
     private static final Logger log = Logger.getLogger(Throttler.class);
+    private static final String RDBMS_THROTTLE_TABLE_NAME = "ThrottleTable";
+    private static final String RDBMS_THROTTLE_TABLE_COLUMN_KEY = "keyy";
+    private static final String RDBMS_THROTTLE_TABLE_COLUMN_ISTHROTTLED = "isThrottled";
+
     static Throttler throttler;
 
     private SiddhiManager siddhiManager;
@@ -138,10 +146,59 @@ public class Throttler {
         //start common EP Runtime
         commonExecutionPlanRuntime.start();
 
+        populateThrottleTable();
+
         eventReceivingServer = new EventReceivingServer();
         eventReceivingServer.start(9611, 9711);
 
         initDataPublisher();
+    }
+
+
+    /**
+     * Copies physical ThrottleTable to this instance's in-memory ThrottleTable.
+     */
+    private void populateThrottleTable(){
+        BasicDataSource basicDataSource = new BasicDataSource();
+        basicDataSource.setDriverClassName("com.mysql.jdbc.Driver");
+        basicDataSource.setUrl("jdbc:mysql://localhost/org_wso2_throttle_DataSource");
+        basicDataSource.setUsername("root");
+        basicDataSource.setPassword("root");
+
+        Connection connection = null;
+        try {
+            connection = basicDataSource.getConnection();
+            DatabaseMetaData dbm = connection.getMetaData();
+            // check if "ThrottleTable" table is there
+            ResultSet tables = dbm.getTables(null, null, RDBMS_THROTTLE_TABLE_NAME, null);
+            if (tables.next()) { // Table exists
+                PreparedStatement stmt = connection.prepareStatement("SELECT * FROM " + RDBMS_THROTTLE_TABLE_NAME);
+                ResultSet resultSet = stmt.executeQuery();
+                while (resultSet.next()) {
+                    String key = resultSet.getString(RDBMS_THROTTLE_TABLE_COLUMN_KEY);
+                    Boolean isThrottled = resultSet.getBoolean(RDBMS_THROTTLE_TABLE_COLUMN_ISTHROTTLED);
+                    try {
+                        getGlobalThrottleStreamInputHandler().send(new Object[]{key, isThrottled});
+                    } catch (InterruptedException e) {
+                        log.error("Error occurred while sending an event.", e);
+                    }
+                }
+            }
+            else {  // Table does not exist
+                log.warn("RDBMS ThrottleTable does not exist. Make sure global throttler server is started.");
+            }
+        } catch (SQLException e) {
+            log.error("Error occurred while copying throttle data from global throttler server.", e);
+        }
+        finally {
+            if(connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    log.error("Error occurred while closing database connection.", e);
+                }
+            }
+        }
     }
 
 
@@ -298,7 +355,7 @@ public class Throttler {
 
     private void sendToGlobalThrottler(Object[] data) {
         org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
-        event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.2"));
+        event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.1"));
         event.setMetaData(null);
         event.setCorrelationData(null);
         event.setPayloadData(data);
