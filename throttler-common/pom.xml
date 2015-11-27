@@ -29,7 +29,7 @@
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>throttle.common</artifactId>
+    <artifactId>throttler-common</artifactId>
 
     <dependencies>
         <dependency>

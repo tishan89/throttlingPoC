@@ -26,11 +26,11 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <modules>
-        <module>throttle.common</module>
+        <module>throttler-common</module>
         <!--<module>throttler</module>-->
         <!--<module>GlobalThrottler</module>-->
         <!--<module>throttlingPoC.original</module>-->
-        <module>throttler-new</module>
+        <module>throttler-core</module>
     </modules>
 
     <properties>
