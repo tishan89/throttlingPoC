@@ -31,8 +31,8 @@ public class BasicTest {
         long startTime = System.nanoTime();
         Request request;
         for (int i = 0; i < 1; i++) {
-            request = new Request("gold","2", "gold","test:1.0.0:abcd:admin@carbon.super", "silver",
-                    "test:GET-abcd:admin@carbon.super");
+            request = new Request("2","test:1.0.0:abcd:admin@carbon.super","test:GET-abcd:admin@carbon.super",
+                                  "gold", "gold", "silver");
             throttler.isThrottled(request);
         }
         long endTime = System.nanoTime();
@@ -49,8 +49,8 @@ public class BasicTest {
         int numOfThreads = 30;
         long numTasks = 800000;
         final Throttler throttler = Throttler.getInstance();
-        final Request request = new Request("gold","2", "gold","test:1.0.0:abcd:admin@carbon.super", "silver",
-                "test:GET-abcd:admin@carbon.super");
+        final Request request = new Request("2","test:1.0.0:abcd:admin@carbon.super","test:GET-abcd:admin@carbon.super",
+                                            "gold", "gold", "silver");
         ThrottlingTask task = new ThrottlingTask(throttler, request);
         ExecutorService executorService = Executors.newFixedThreadPool(numOfThreads);
 
@@ -79,8 +79,8 @@ public class BasicTest {
         int numTasks = 800000;
         int iterations = 10000;
         List<Long> resultList = new ArrayList<Long>(numTasks);
-        final Request request = new Request("gold","2", "gold","test:1.0.0:abcd:admin@carbon.super", "silver",
-                "test:GET-abcd:admin@carbon.super");
+        final Request request = new Request("2","test:1.0.0:abcd:admin@carbon.super","test:GET-abcd:admin@carbon.super",
+                                            "gold", "gold", "silver");
         final Throttler throttler = Throttler.getInstance();
         ThrottlingTask task = new ThrottlingTask(throttler, request);
         ExecutorService executorService = Executors.newFixedThreadPool(numOfThreads);
