@@ -4,7 +4,7 @@ import org.apache.log4j.Logger;
 import org.junit.Test;
 import org.wso2.carbon.databridge.core.exception.DataBridgeException;
 import org.wso2.carbon.databridge.core.exception.StreamDefinitionStoreException;
-import org.wso2.throttle.core.Request;
+import org.wso2.throttle.api.Request;
 import org.wso2.throttle.core.Throttler;
 
 import java.io.IOException;
@@ -25,13 +25,13 @@ public class BasicTest {
         Throttler throttler = Throttler.getInstance();
         throttler.start();
 
-        throttler.addRule("bronze", null, null);
-        throttler.addRule("silver", null, null);
-        throttler.addRule("gold", null, null);
+        throttler.addRule("bronze");
+        throttler.addRule("silver");
+        throttler.addRule("gold");
         long startTime = System.nanoTime();
         Request request;
         for (int i = 0; i < 1; i++) {
-            request = new Request("gold", "somekey", "", "");
+            request = new Request("someappkey", "someapikey", "somereskey", "gold", "silver", "gold");
             throttler.isThrottled(request);
         }
         long endTime = System.nanoTime();
@@ -48,14 +48,14 @@ public class BasicTest {
         int numOfThreads = 30;
         long numTasks = 800000;
         final Throttler throttler = Throttler.getInstance();
-        final Request request = new Request("gold", "somekey", "", "");
+        final Request request = new Request("someappkey", "someapikey", "somereskey", "gold", "silver", "gold");
         ThrottlingTask task = new ThrottlingTask(throttler, request);
         ExecutorService executorService = Executors.newFixedThreadPool(numOfThreads);
 
         throttler.start();
-        throttler.addRule("bronze", null, null);
-        throttler.addRule("silver", null, null);
-        throttler.addRule("gold", null, null);
+        throttler.addRule("bronze");
+        throttler.addRule("silver");
+        throttler.addRule("gold");
 
         long startTimeMillis = System.currentTimeMillis();
         for (int i = 0; i < numTasks; i++) {
@@ -77,15 +77,15 @@ public class BasicTest {
         int numTasks = 800000;
         int iterations = 10000;
         List<Long> resultList = new ArrayList<Long>(numTasks);
-        final Request request = new Request("gold", "somekey", "", "");
+        final Request request = new Request("someappkey", "someapikey", "somereskey", "gold", "silver", "gold");
         final Throttler throttler = Throttler.getInstance();
         ThrottlingTask task = new ThrottlingTask(throttler, request);
         ExecutorService executorService = Executors.newFixedThreadPool(numOfThreads);
 
         throttler.start();
-        throttler.addRule("bronze", null, null);
-        throttler.addRule("silver", null, null);
-        throttler.addRule("gold", null, null);
+        throttler.addRule("bronze");
+        throttler.addRule("silver");
+        throttler.addRule("gold");
 
         //flood the system
         for (int i = 0; i < numTasks; i++) {
