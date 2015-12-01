@@ -22,45 +22,67 @@ package org.wso2.throttle.core;
  * Request which is sent to Throttler.
  */
 public class Request {
-    private String tier;
-    private String key;
-    private String v1;
-    private String v2;
+    private String appTier;
+    private String appKey;
+    private String apiTier;
+    private String apiKey;
+    private String resourceKey;
+    private String resourceTier;
 
-    public Request(String tier, String key, String v1, String v2){
-        this.tier = tier;
-        this.key = key;
+    public Request(String appTier, String appKey, String apiTier, String apiKey, String resourceKey, String resourceTier){
+        this.appTier = appTier;
+        this.appKey = appKey;
+        this.apiTier = apiTier;
+        this.apiKey = apiKey;
+        this.resourceTier = resourceTier;
+        this.resourceKey = resourceKey;
     }
 
-    public String getTier() {
-        return tier;
+    public String getAppTier() {
+        return appTier;
     }
 
-    public void setTier(String tier) {
-        this.tier = tier;
+    public void setAppTier(String appTier) {
+        this.appTier = appTier;
     }
 
-    public String getKey() {
-        return key;
+    public String getAppKey() {
+        return appKey;
     }
 
-    public void setKey(String apiName) {
-        this.key = apiName;
+    public void setAppKey(String apiName) {
+        this.appKey = apiName;
     }
 
-    public String getV2() {
-        return v2;
+    public String getApiKey() {
+        return apiKey;
     }
 
-    public void setV2(String v2) {
-        this.v2 = v2;
+    public void setApiKey(String apiKey) {
+        this.apiKey = apiKey;
     }
 
-    public String getV1() {
-        return v1;
+    public String getApiTier() {
+        return apiTier;
     }
 
-    public void setV1(String v1) {
-        this.v1 = v1;
+    public void setApiTier(String apiTier) {
+        this.apiTier = apiTier;
+    }
+
+    public String getResourceKey() {
+        return resourceKey;
+    }
+
+    public void setResourceKey(String resourceKey) {
+        this.resourceKey = resourceKey;
+    }
+
+    public String getResourceTier() {
+        return resourceTier;
+    }
+
+    public void setResourceTier(String resourceTier) {
+        this.resourceTier = resourceTier;
     }
 }

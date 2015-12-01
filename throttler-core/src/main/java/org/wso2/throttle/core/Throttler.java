@@ -279,8 +279,8 @@ public class Throttler {
         if (ruleCount != 0) {
             ResultContainer result = new ResultContainer(ruleCount);
             resultMap.put(uniqueKey.toString(), result);
-            Object[] output = new Object[]{uniqueKey, request.getTier(), request.getKey(), request.getV1(),
-                    request.getV2()};
+            Object[] output = new Object[]{uniqueKey, request.getAppKey(), request.getApiKey(), request.getResourceKey(),
+                    request.getAppTier(), request.getApiTier(), request.getResourceTier()};
             Iterator<InputHandler> handlerList = requestStreamInputHandlerList.iterator();
             while(handlerList.hasNext())
             {
