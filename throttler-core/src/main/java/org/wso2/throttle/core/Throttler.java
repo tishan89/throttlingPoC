@@ -116,7 +116,7 @@ public class Throttler {
                                      "SELECT rule, messageID, ThrottleTable.isThrottled AS isThrottled\n" +
                                      "INSERT INTO ThrottleStream;\n" +
                                      "\n" +
-                                     "from EligibileStream[not (EligibileStream.key == ThrottleTable.key) in ThrottleTable]\n" +
+                                     "from EligibileStream[not ((EligibileStream.key == ThrottleTable.key) in ThrottleTable)]\n" +
                                      "select EligibileStream.rule AS rule, EligibileStream.messageID, false AS isThrottled\n" +
                                      "insert into ThrottleStream;\n" +
                                      "\n" +
@@ -218,7 +218,7 @@ public class Throttler {
             resultMap.put(uniqueKey.toString(), result);
             Object[] requestStreamInput = new Object[]{uniqueKey, request.getAppKey(), request.getApiKey(), request.getResourceKey(),
                     request.getAppTier(), request.getApiTier(), request.getResourceTier()};
-            Iterator<InputHandler> handlerList = requestStreamInputHandlerList.iterator();    //todo: we might not need a handler list anymore. check.
+            Iterator<InputHandler> handlerList = requestStreamInputHandlerList.iterator();
             while(handlerList.hasNext())
             {
                 InputHandler inputHandler = handlerList.next();
