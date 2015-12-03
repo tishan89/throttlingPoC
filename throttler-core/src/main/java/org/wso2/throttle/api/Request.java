@@ -30,6 +30,15 @@ public class Request {
     private String apiTier;
     private String resourceTier;
 
+    /**
+     * Construct request object for {@link org.wso2.throttle.core.Throttler}
+     * @param appKey Throttling key for application level (should be unique)
+     * @param apiKey Throttling key for API level (should be unique)
+     * @param resourceKey Throttling key for resource level (should be unique)
+     * @param appTier Throttling Tier for application level
+     * @param apiTier Throttling Tier for API level
+     * @param resourceTier Throttling Tier for resource level
+     */
     public Request(String appKey, String apiKey, String resourceKey, String appTier, String apiTier, String resourceTier) {
         this.appKey = appKey;
         this.apiKey = apiKey;
