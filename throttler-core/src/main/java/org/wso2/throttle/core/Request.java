@@ -19,7 +19,7 @@
 package org.wso2.throttle.core;
 
 /**
- * Request which is sent to Throttler.
+ * Request which is sent to {@link org.wso2.throttle.core.Throttler} to request throttling decision.
  */
 public class Request {
     private String appTier;
@@ -29,7 +29,16 @@ public class Request {
     private String resourceKey;
     private String resourceTier;
 
-    public Request(String appTier, String appKey, String apiTier, String apiKey, String resourceKey, String resourceTier){
+    /**
+     * Construct Request object to send to {@link org.wso2.throttle.core.Throttler}
+     * @param appTier Throttling tier for applications
+     * @param appKey Key to be used in application throttling (should be unique)
+     * @param apiTier Throttling tier for APIs
+     * @param apiKey Key to be used in API throttling (should be unique)
+     * @param resourceTier Throttling tier for resource level throttling
+     * @param resourceKey Key to be used in resource level throttling (should be unique)
+     */
+    public Request(String appTier, String appKey, String apiTier, String apiKey, String resourceTier, String resourceKey){
         this.appTier = appTier;
         this.appKey = appKey;
         this.apiTier = apiTier;
