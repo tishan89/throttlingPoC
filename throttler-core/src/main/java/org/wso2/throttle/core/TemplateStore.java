@@ -18,55 +18,34 @@
 
 package org.wso2.throttle.core;
 
-import org.apache.log4j.Logger;
-
-import java.util.HashMap;
-import java.util.Map;
+import org.wso2.throttle.api.ThrottleLevel;
 
 public class TemplateStore {
-    private static final Logger log = Logger.getLogger(TemplateStore.class);
-    private static TemplateStore templateStore;
-    private Map<String, String> templateIDToQuery = new HashMap<String, String>();
+    private static String eligibilityQueryTemplate = "FROM RequestStream\n" +
+                                 "SELECT \"$THROTTLELEVEL_$TIER\" AS rule, messageID, (not ($THROTTLELEVEL_tier is null) AND $THROTTLELEVEL_tier==\"$TIER\") AS isEligible, " +
+                                 "$THROTTLELEVEL_key AS key\n" +
+                                 "INSERT INTO EligibilityStream;";
 
-    public static synchronized TemplateStore getInstance(){
-        if(templateStore == null){
-            templateStore = new TemplateStore();
-        }
-        return templateStore;
+    private static String getEligibilityQueryTemplate() {
+        return eligibilityQueryTemplate;
     }
 
-    private TemplateStore(){
-        //Populate templateIDToQuery map with default templates, bronze, silver and gold
-        templateIDToQuery.put("bronze", "FROM RequestStream\n" +
-                                        "SELECT \"bronze\" AS rule, messageId, (tier==\"bronze\") AS isEligible, key, \"\" AS v1, \"\" AS v2\n" +
-                                        "INSERT INTO EligibilityStream;");
+    //todo: improve validation
+    public static String getEligibilityQueries(String tier) {
+        String eligibilityQueryTemplate = getEligibilityQueryTemplate();
 
-        templateIDToQuery.put("silver", "FROM RequestStream\n" +
-                                        "SELECT \"silver\" AS rule, messageId, (tier==\"silver\") AS isEligible, key, \"\" AS v1, \"\" AS v2\n" +
-                                        "INSERT INTO EligibilityStream;");
-
-        templateIDToQuery.put("gold", "FROM RequestStream\n" +
-                                      "SELECT \"gold\" AS rule, messageId, (tier==\"gold\") AS isEligible, key, \"\" AS v1, \"\" AS v2\n" +
-                                      "INSERT INTO EligibilityStream;");
+        StringBuilder builder = new StringBuilder();
+        for (ThrottleLevel level : ThrottleLevel.values()) {
+            String query = eligibilityQueryTemplate.replace("$THROTTLELEVEL", level.toString().toLowerCase());
+            query = query.replace("$TIER", tier);
+            builder.append(query);
+            builder.append("\n");
+        }
+        return builder.toString();
     }
 
-    /**
-     * To add a new rule-template, specify a unique ID and the parameterized query
-     * @param templateID    a unique ID to be given to rule-template
-     * @param query         parameterized query
-     */
-    public void addTemplate(String templateID, String query){
-        if(templateIDToQuery.containsKey(templateID)){
-            log.warn("Replacing query for template ID: " + templateID + ". Existing query: " + templateIDToQuery.get(templateID)
-                     + ". New query: " + query);
-        }
-        templateIDToQuery.put(templateID, query);
-    }
-
-    public String getQueryTemplate(String templateID){
-        if(templateIDToQuery.isEmpty()){
-            return null;
-        }
-        return templateIDToQuery.get(templateID);
+    public static String getEnforcementQuery() {
+        //todo: implement
+        return "";
     }
 }

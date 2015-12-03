@@ -35,6 +35,7 @@ import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
+import org.wso2.throttle.api.Request;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.io.IOException;
@@ -96,8 +97,8 @@ public class Throttler {
     public void start() throws DataBridgeException, IOException, StreamDefinitionStoreException {
         siddhiManager = new SiddhiManager();
 
-        String commonExecutionPlan = "define stream EligibilityStream (rule string, messageID string, isEligible bool, key string, v1 string, v2 string);\n" +
-                                     "define stream GlobalThrottleStream (key string, isThrottled bool); \n" +
+        String commonExecutionPlan = "define stream EligibilityStream (rule string, messageID string, isEligible bool, key string);\n" +
+                                     "define stream GlobalThrottleStream (key string, isThrottled bool);\n" +
                                      "\n" +
                                      "@IndexBy('key')\n" +
                                      "define table ThrottleTable (key string, isThrottled bool);\n" +
@@ -107,23 +108,21 @@ public class Throttler {
                                      "INSERT INTO ThrottleStream;\n" +
                                      "\n" +
                                      "FROM EligibilityStream[isEligible==true]\n" +
-                                     "SELECT rule, messageID, isEligible, key, v1, v2\n" +
+                                     "SELECT rule, messageID, isEligible, key\n" +
                                      "INSERT INTO EligibileStream;\n" +
                                      "\n" +
                                      "FROM EligibileStream JOIN ThrottleTable\n" +
-                                     "\tON ThrottleTable.key == str:concat(EligibileStream.key,\"_\",EligibileStream.v1,\"_\",EligibileStream.v2)\n" +
+                                     "\tON ThrottleTable.key == EligibileStream.key\n" +
                                      "SELECT rule, messageID, ThrottleTable.isThrottled AS isThrottled\n" +
                                      "INSERT INTO ThrottleStream;\n" +
                                      "\n" +
-                                     "from EligibileStream[not ((str:concat(EligibileStream.key,\"_\",EligibileStream.v1,\"_\",EligibileStream.v2) == ThrottleTable.key ) in ThrottleTable)]\n" +
+                                     "from EligibileStream[not ((EligibileStream.key == ThrottleTable.key) in ThrottleTable)]\n" +
                                      "select EligibileStream.rule AS rule, EligibileStream.messageID, false AS isThrottled\n" +
                                      "insert into ThrottleStream;\n" +
                                      "\n" +
                                      "from GlobalThrottleStream\n" +
                                      "select *\n" +
-                                     "insert into ThrottleTable;\n" +
-                                     "\n" +
-                                     "\n";
+                                     "insert into ThrottleTable;";
 
         ExecutionPlanRuntime commonExecutionPlanRuntime = siddhiManager.createExecutionPlanRuntime(commonExecutionPlan);
 
@@ -152,6 +151,100 @@ public class Throttler {
         //initialize binary data publisher to send requests to global CEP instance
         initDataPublisher();
     }
+
+
+    /**
+     * This method lets a user to add a predefined rule (pre-defined as a template), specifying desired parameters.
+     * @param tier
+     */
+    public synchronized void addRule(String tier) {
+        deployRuleToLocalCEP(tier);
+        //deployRuleToGlobalCEP(tier);
+    }
+
+    //todo: this method has not being implemented completely. Will be done after doing perf tests.
+    private void deployRuleToGlobalCEP(String templateID, String parameter1, String parameter2){
+        String queries = TemplateStore.getEnforcementQuery();
+
+        ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (messageID string, app_key string, api_key string, resource_key string, app_tier string, api_tier string, resource_tier string); " +
+                                                                                    queries);
+
+        GlobalCEPClient globalCEPClient = new GlobalCEPClient();
+        globalCEPClient.deployExecutionPlan(queries);
+    }
+
+    private void deployRuleToLocalCEP(String tier){
+        String eligibilityQueries = TemplateStore.getEligibilityQueries(tier);
+
+        ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (messageID string, app_key string, api_key string, resource_key string, app_tier string, api_tier string, resource_tier string); " +
+                                                                                    eligibilityQueries);
+
+        //Add call backs. Here, we take output events and insert into EligibilityStream
+        ruleRuntime.addCallback("EligibilityStream", new StreamCallback() {
+            @Override
+            public void receive(Event[] events) {
+                try {
+                    getEligibilityStreamInputHandler().send(events);
+                } catch (InterruptedException e) {
+                    log.error("Error occurred when publishing to EligibilityStream.", e);
+                }
+            }
+        });
+
+        //get and register input handler for RequestStream, so isThrottled() can use it.
+        requestStreamInputHandlerList.add(ruleRuntime.getInputHandler("RequestStream"));
+
+        //Need to know current rule count to provide synchronous API
+        ruleCount++;
+        ruleRuntime.start();
+    }
+
+    //todo
+    public synchronized void removeRule() {
+    }
+
+
+    /**
+     * Returns whether the given request is throttled.
+     *
+     * @param request User request to APIM which needs to be checked whether throttled
+     * @return Throttle status for current status
+     * @throws InterruptedException
+     */
+    public boolean isThrottled(Request request) throws InterruptedException {
+        UUID uniqueKey = UUID.randomUUID();
+        if (ruleCount != 0) {
+            ResultContainer result = new ResultContainer(ruleCount);
+            resultMap.put(uniqueKey.toString(), result);
+            Object[] requestStreamInput = new Object[]{uniqueKey, request.getAppKey(), request.getApiKey(), request.getResourceKey(),
+                    request.getAppTier(), request.getApiTier(), request.getResourceTier()};
+            Iterator<InputHandler> handlerList = requestStreamInputHandlerList.iterator();
+            while(handlerList.hasNext())
+            {
+                InputHandler inputHandler = handlerList.next();
+                inputHandler.send(requestStreamInput);
+            }
+            //Blocked call to return synchronous result
+            boolean isThrottled = result.isThrottled();
+            if (!isThrottled) {                                           //Only send served request to global throttler
+                sendToGlobalThrottler(requestStreamInput);
+            }
+            resultMap.remove(uniqueKey);
+            return isThrottled;
+        } else {
+            return false;
+        }
+    }
+
+    public void stop() {
+        if (siddhiManager != null) {
+            siddhiManager.shutdown();
+        }
+        if (eventReceivingServer != null) {
+            eventReceivingServer.stop();
+        }
+    }
+
 
 
     /**
@@ -201,128 +294,6 @@ public class Throttler {
     }
 
 
-    /**
-     * This method lets a user to add a predefined rule (pre-defined as a template), specifying desired parameters.
-     *
-     * @param templateID ID of the rule-template.
-     * @param parameter1 First parameter, to be inserted in to the template
-     * @param parameter2 Second parameter, to be inserted in to the template
-     */
-    public synchronized void addRule(String templateID, String parameter1, String parameter2) {
-        deployRuleToLocalCEP(templateID, parameter1, parameter2);
-        //deployRuleToGlobalCEP(templateID, parameter1, parameter2);
-    }
-
-    //todo: this method has not being implemented completely. Will be done after doing perf tests.
-    private void deployRuleToGlobalCEP(String templateID, String parameter1, String parameter2){
-        String queryTemplate = GlobalTemplateStore.getInstance().getQueryTemplate(templateID);
-        if (queryTemplate == null) {
-            throw new RuntimeException("No query template exist for ID: " + templateID + " in Global Template Store.");
-        }
-
-        //replace parameters in the queries, if required.
-        String queries = replaceParamsInTemplate(queryTemplate, parameter1, parameter2);
-
-        ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (messageId string, tier string, key string, v1 string, v2 string); " +
-                                                                                    queries);
-
-        GlobalCEPClient globalCEPClient = new GlobalCEPClient();
-        globalCEPClient.deployExecutionPlan(queries);
-    }
-
-    private void deployRuleToLocalCEP(String templateID, String parameter1, String parameter2){
-        String queryTemplate = TemplateStore.getInstance().getQueryTemplate(templateID);
-        if (queryTemplate == null) {
-            throw new RuntimeException("No query template exist for ID: " + templateID + " in Local Template Store.");
-        }
-
-        //replace parameters in the query, if required.
-        String query = replaceParamsInTemplate(queryTemplate, parameter1, parameter2);
-
-        ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (messageId string, tier string, key string, v1 string, v2 string); " +
-                                                                                    query);
-
-        //Add call backs. Here, we take output events and insert into EligibilityStream
-        ruleRuntime.addCallback("EligibilityStream", new StreamCallback() {
-            @Override
-            public void receive(Event[] events) {
-                try {
-                    getEligibilityStreamInputHandler().send(events);
-                } catch (InterruptedException e) {
-                    log.error("Error occurred when publishing to EligibilityStream.", e);
-                }
-            }
-        });
-
-        //get and register input handler for RequestStream, so isThrottled() can use it.
-        requestStreamInputHandlerList.add(ruleRuntime.getInputHandler("RequestStream"));
-
-        //Need to know current rule count to provide synchronous API
-        ruleCount++;
-        ruleRuntime.start();
-    }
-
-    //todo
-    public synchronized void removeRule() {
-    }
-
-
-    /**
-     * Returns whether the given request is throttled.
-     *
-     * @param request User request to APIM which needs to be checked whether throttled
-     * @return Throttle status for current status
-     * @throws InterruptedException
-     */
-    public boolean isThrottled(Request request) throws InterruptedException {
-        UUID uniqueKey = UUID.randomUUID();
-        if (ruleCount != 0) {
-            ResultContainer result = new ResultContainer(ruleCount);
-            resultMap.put(uniqueKey.toString(), result);
-            Object[] output = new Object[]{uniqueKey, request.getAppKey(), request.getApiKey(), request.getResourceKey(),
-                    request.getAppTier(), request.getApiTier(), request.getResourceTier()};
-            Iterator<InputHandler> handlerList = requestStreamInputHandlerList.iterator();
-            while(handlerList.hasNext())
-            {
-                InputHandler inputHandler = handlerList.next();
-                inputHandler.send(output);
-            }
-            //Blocked call to return synchronous result
-            boolean isThrottled = result.isThrottled();
-            if (!isThrottled) {                                           //Only send served request to global throttler
-                sendToGlobalThrottler(output);
-            }
-            resultMap.remove(uniqueKey);
-            return isThrottled;
-        } else {
-            return false;
-        }
-    }
-
-    public void stop() {
-        if (siddhiManager != null) {
-            siddhiManager.shutdown();
-        }
-        if (eventReceivingServer != null) {
-            eventReceivingServer.stop();
-        }
-    }
-
-
-    //todo: improve validation
-    private String replaceParamsInTemplate(String template, String parameter1, String parameter2) {
-        if (template == null) {
-            throw new IllegalArgumentException("template cannot be null");
-        }
-        if (parameter1 != null) {
-            template = template.replace("$param1", "\"" + parameter1 + "\"");
-        }
-        if (parameter2 != null) {
-            template = template.replace("$param2", "\"" + parameter2 + "\"");
-        }
-        return template;
-    }
-
     private InputHandler getEligibilityStreamInputHandler() {
         return eligibilityStreamInputHandler;
     }
@@ -349,7 +320,7 @@ public class Throttler {
 
     private void sendToGlobalThrottler(Object[] data) {
         org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
-        event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.1"));
+        event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.3"));
         event.setMetaData(null);
         event.setCorrelationData(null);
         event.setPayloadData(data);
