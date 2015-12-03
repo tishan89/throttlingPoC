@@ -19,9 +19,7 @@ public class BasicTest {
     private static final Logger log = Logger.getLogger(BasicTest.class);
 
     @Test
-    public void testRule1()
-            throws InterruptedException, DataBridgeException, StreamDefinitionStoreException,
-                   IOException {
+    public void testRule1() throws InterruptedException {
         Throttler throttler = Throttler.getInstance();
         throttler.start();
 
@@ -44,8 +42,7 @@ public class BasicTest {
 
     @Test
     public void testPerformance()
-            throws InterruptedException, DataBridgeException, StreamDefinitionStoreException,
-            IOException {
+            throws InterruptedException {
         int numOfThreads = 30;
         long numTasks = 800000;
         final Throttler throttler = Throttler.getInstance();
@@ -74,7 +71,7 @@ public class BasicTest {
     }
 
     @Test
-    public void testLatency() throws DataBridgeException, StreamDefinitionStoreException, IOException, InterruptedException {
+    public void testLatency() throws InterruptedException {
         int numOfThreads = 3;
         int numTasks = 800000;
         int iterations = 10000;
@@ -123,11 +120,7 @@ public class BasicTest {
 
         @Override
         public void run() {
-            try {
                 throttler.isThrottled(request);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
         }
     }
 }
