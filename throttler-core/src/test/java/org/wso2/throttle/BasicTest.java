@@ -21,7 +21,6 @@ public class BasicTest {
     @Test
     public void testRule1() throws InterruptedException {
         Throttler throttler = Throttler.getInstance();
-        throttler.start();
 
         throttler.addRule("bronze");
         throttler.addRule("silver");
@@ -51,7 +50,6 @@ public class BasicTest {
         ThrottlingTask task = new ThrottlingTask(throttler, request);
         ExecutorService executorService = Executors.newFixedThreadPool(numOfThreads);
 
-        throttler.start();
         throttler.addRule("bronze");
         throttler.addRule("silver");
         throttler.addRule("gold");
@@ -82,7 +80,6 @@ public class BasicTest {
         ThrottlingTask task = new ThrottlingTask(throttler, request);
         ExecutorService executorService = Executors.newFixedThreadPool(numOfThreads);
 
-        throttler.start();
         throttler.addRule("bronze");
         throttler.addRule("silver");
         throttler.addRule("gold");

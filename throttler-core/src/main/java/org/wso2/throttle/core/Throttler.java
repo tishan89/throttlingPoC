@@ -197,6 +197,7 @@ public class Throttler {
                 try {
                     getEligibilityStreamInputHandler().send(events);
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.error("Error occurred when publishing to EligibilityStream.", e);
                 }
             }
