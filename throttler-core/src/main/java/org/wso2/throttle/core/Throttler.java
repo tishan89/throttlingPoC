@@ -58,7 +58,7 @@ import java.util.concurrent.Executors;
  * 1. Get an instance
  * 2. Start
  * 3. Add rules
- * 4. Invoke isThrottled
+ * 4. Invoke isThrottled with {@link org.wso2.throttle.core.Throttler} object
  */
 public class Throttler {
     private static final Logger log = Logger.getLogger(Throttler.class);
@@ -66,7 +66,7 @@ public class Throttler {
     private static final String RDBMS_THROTTLE_TABLE_COLUMN_KEY = "keyy";
     private static final String RDBMS_THROTTLE_TABLE_COLUMN_ISTHROTTLED = "isThrottled";
 
-    static Throttler throttler;
+    private static Throttler throttler;
 
     private SiddhiManager siddhiManager;
     private InputHandler eligibilityStreamInputHandler;
@@ -79,9 +79,9 @@ public class Throttler {
 
     private String hostName = "localhost";      //10.100.5.99
     private DataPublisher dataPublisher = null;
-    ExecutorService executorService = null;
 
     private Throttler() {
+        this.start();
     }
 
     public static synchronized Throttler getInstance() {
@@ -94,7 +94,7 @@ public class Throttler {
     /**
      * Starts throttler engine. Calling method should catch the exceptions and call stop to clean up.
      */
-    public void start() {
+    private void start() {
         siddhiManager = new SiddhiManager();
 
         String commonExecutionPlan = "define stream EligibilityStream (rule string, messageID string, isEligible bool, key string);\n" +
@@ -220,7 +220,6 @@ public class Throttler {
      *
      * @param request User request to APIM which needs to be checked whether throttled
      * @return Throttle status for current request
-     * @throws InterruptedException
      */
     public boolean isThrottled(Request request) {
         UUID uniqueKey = UUID.randomUUID();
@@ -371,7 +370,6 @@ public class Throttler {
             log.error(e.getMessage(), e);
         }
 
-        executorService = Executors.newFixedThreadPool(10);
 
     }
 
