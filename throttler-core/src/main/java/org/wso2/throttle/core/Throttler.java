@@ -51,8 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * Class which does throttling.
@@ -82,12 +80,12 @@ public class Throttler {
     private DataPublisher dataPublisher = null;
 
     private Throttler() {
-        this.start();
     }
 
     public static synchronized Throttler getInstance() {
         if (throttler == null) {
             throttler = new Throttler();
+            throttler.start();
         }
         return throttler;
     }
