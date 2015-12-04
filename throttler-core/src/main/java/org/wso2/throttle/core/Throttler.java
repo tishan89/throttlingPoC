@@ -59,7 +59,7 @@ import java.util.concurrent.Executors;
  * 1. Get an instance
  * 2. Start
  * 3. Add rules
- * 4. Invoke isThrottled
+ * 4. Invoke isThrottled with {@link org.wso2.throttle.core.Throttler} object
  */
 public class Throttler {
     private static final Logger log = Logger.getLogger(Throttler.class);
@@ -67,7 +67,7 @@ public class Throttler {
     private static final String RDBMS_THROTTLE_TABLE_COLUMN_KEY = "keyy";
     private static final String RDBMS_THROTTLE_TABLE_COLUMN_ISTHROTTLED = "isThrottled";
 
-    static Throttler throttler;
+    private static Throttler throttler;
 
     private SiddhiManager siddhiManager;
     private InputHandler eligibilityStreamInputHandler;
@@ -80,9 +80,9 @@ public class Throttler {
 
     private String hostName = "localhost";      //10.100.5.99
     private DataPublisher dataPublisher = null;
-    ExecutorService executorService = null;
 
     private Throttler() {
+        this.start();
     }
 
     public static synchronized Throttler getInstance() {
@@ -95,7 +95,7 @@ public class Throttler {
     /**
      * Starts throttler engine. Calling method should catch the exceptions and call stop to clean up.
      */
-    public void start() throws DataBridgeException, IOException, StreamDefinitionStoreException {
+    private void start() {
         siddhiManager = new SiddhiManager();
 
         String commonExecutionPlan = "define stream EligibilityStream (rule string, messageID string, isEligible bool, key string);\n" +
@@ -147,7 +147,18 @@ public class Throttler {
 
         //starts binary server to receive events from global CEP instance
         eventReceivingServer = new EventReceivingServer();
-        eventReceivingServer.start(9611, 9711);
+        try {
+            eventReceivingServer.start(9611, 9711);
+        } catch (DataBridgeException e) {
+            log.error("Error in starting the Event Receiving Server for throttler" + e.getMessage() , e);
+            throw new RuntimeException("Error in starting the Event Receiving Server for throttler", e);
+        } catch (IOException e) {
+            log.error("Error in starting the Event Receiving Server for throttler" + e.getMessage() , e);
+            throw new RuntimeException("Error in starting the Event Receiving Server for throttler", e);
+        } catch (StreamDefinitionStoreException e) {
+            log.error("Error in starting the Event Receiving Server for throttler" + e.getMessage() , e);
+            throw new RuntimeException("Error in starting the Event Receiving Server for throttler", e);
+        }
 
         //initialize binary data publisher to send requests to global CEP instance
         initDataPublisher();
@@ -187,6 +198,7 @@ public class Throttler {
                 try {
                     getEligibilityStreamInputHandler().send(events);
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.error("Error occurred when publishing to EligibilityStream.", e);
                 }
             }
@@ -209,10 +221,9 @@ public class Throttler {
      * Returns whether the given request is throttled.
      *
      * @param request User request to APIM which needs to be checked whether throttled
-     * @return Throttle status for current status
-     * @throws InterruptedException
+     * @return Throttle status for current request
      */
-    public boolean isThrottled(Request request) throws InterruptedException {
+    public boolean isThrottled(Request request) {
         UUID uniqueKey = UUID.randomUUID();
         if (ruleCount != 0) {
             ResultContainer result = new ResultContainer(ruleCount);
@@ -223,10 +234,23 @@ public class Throttler {
             while(handlerList.hasNext())
             {
                 InputHandler inputHandler = handlerList.next();
-                inputHandler.send(requestStreamInput);
+                try {
+                    inputHandler.send(requestStreamInput);
+                } catch (InterruptedException e) {
+                    //interrupt current thread so that interrupt can propagate
+                    Thread.currentThread().interrupt();
+                    log.error(e.getMessage(), e);
+                }
             }
             //Blocked call to return synchronous result
-            boolean isThrottled = result.isThrottled();
+            boolean isThrottled = false;
+            try {
+                isThrottled = result.isThrottled();
+            } catch (InterruptedException e) {
+                //interrupt current thread so that interrupt can propagate
+                Thread.currentThread().interrupt();
+                log.error(e.getMessage(), e);
+            }
             if (!isThrottled) {                                           //Only send served request to global throttler
                 sendToGlobalThrottler(requestStreamInput);
             }
@@ -348,7 +372,6 @@ public class Throttler {
             log.error(e.getMessage(), e);
         }
 
-        executorService = Executors.newFixedThreadPool(10);
 
     }
 
