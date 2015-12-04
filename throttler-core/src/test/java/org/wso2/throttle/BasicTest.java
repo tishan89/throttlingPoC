@@ -2,12 +2,9 @@ package org.wso2.throttle;
 
 import org.apache.log4j.Logger;
 import org.junit.Test;
-import org.wso2.carbon.databridge.core.exception.DataBridgeException;
-import org.wso2.carbon.databridge.core.exception.StreamDefinitionStoreException;
 import org.wso2.throttle.api.Request;
 import org.wso2.throttle.core.Throttler;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

@@ -22,7 +22,7 @@ import org.wso2.throttle.api.ThrottleLevel;
 
 public class TemplateStore {
     private static String eligibilityQueryTemplate = "FROM RequestStream\n" +
-                                 "SELECT \"$THROTTLELEVEL_$TIER\" AS rule, messageID, (not ($THROTTLELEVEL_tier is null) AND $THROTTLELEVEL_tier==\"$TIER\") AS isEligible, " +
+                                 "SELECT \"$THROTTLELEVEL_$TIER\" AS rule, messageID, ($THROTTLELEVEL_tier==\"$TIER\") AS isEligible, " +
                                  "$THROTTLELEVEL_key AS key\n" +
                                  "INSERT INTO EligibilityStream;";
 
