@@ -36,6 +36,7 @@ import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
 import org.wso2.throttle.api.Request;
+import org.wso2.throttle.api.ThrottleLevel;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
 
 import java.io.IOException;
@@ -195,7 +196,7 @@ public class Throttler {
         requestStreamInputHandlerList.add(ruleRuntime.getInputHandler("RequestStream"));
 
         //Need to know current rule count to provide synchronous API
-        ruleCount++;
+        ruleCount = ruleCount + ThrottleLevel.values().length;
         ruleRuntime.start();
     }
 
