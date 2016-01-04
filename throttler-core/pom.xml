@@ -6,6 +6,7 @@
     <groupId>org.wso2.throttle</groupId>
     <artifactId>throttler-core</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <packaging>bundle</packaging>
 
     <parent>
         <artifactId>Throttling-parent-module</artifactId>
@@ -32,29 +33,9 @@
             <version>${siddhi.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.wso2.carbon.analytics-common</groupId>
-            <artifactId>org.wso2.carbon.databridge.agent</artifactId>
-            <version>${carbon.analytics.common.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.wso2.throttle</groupId>
             <artifactId>throttler-common</artifactId>
             <version>${throttler.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.wso2.carbon.analytics-common</groupId>
-            <artifactId>org.wso2.carbon.databridge.commons</artifactId>
-            <version>${carbon.analytics.common.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.wso2.carbon.analytics-common</groupId>
-            <artifactId>org.wso2.carbon.databridge.commons.thrift</artifactId>
-            <version>${carbon.analytics.common.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.wso2.carbon.analytics-common</groupId>
-            <artifactId>org.wso2.carbon.databridge.receiver.thrift</artifactId>
-            <version>${carbon.analytics.common.version}</version>
         </dependency>
         <dependency>
             <groupId>org.wso2.carbon.analytics-common</groupId>
@@ -81,8 +62,40 @@
             <artifactId>mysql-connector-java</artifactId>
             <version>${mysql.connector.java.version}</version>
         </dependency>
-
-
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <extensions>true</extensions>
+                <configuration>
+                    <instructions>
+                        <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
+                        <Bundle-Name>${project.artifactId}</Bundle-Name>
+                        <Private-Package>
+                            org.wso2.throttle.internal,
+                            org.wso2.throttle.internal.*
+                        </Private-Package>
+                        <Export-Package>
+                            !org.wso2.throttle.internal,
+                            !org.wso2.throttle.internal.*,
+                            org.wso2.throttle.*
+                        </Export-Package>
+                        <Import-Package>
+                            org.wso2.carbon.databridge.core; version = "[5.0.6, 5.0.7)",
+                            org.wso2.carbon.databridge.receiver.binary.*; version = "[5.0.6, 5.0.7)",
+                            org.wso2.carbon.databridge.agent; version= "[5.0.6, 5.0.7)",
+                            org.wso2.carbon.databridge.commons; version = "[5.0.6, 5.0.7)",
+                            org.wso2.siddhi.*; version = "[3.0.0, 3.0.5)",
+                            org.osgi.framework,*;resolution:=optional
+                        </Import-Package>
+                        <DynamicImport-Package>*</DynamicImport-Package>
+                    </instructions>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

@@ -26,6 +26,8 @@ import org.wso2.carbon.databridge.commons.exception.MalformedStreamDefinitionExc
 import org.wso2.carbon.databridge.commons.utils.EventDefinitionConverterUtils;
 import org.wso2.carbon.databridge.core.AgentCallback;
 import org.wso2.carbon.databridge.core.DataBridge;
+import org.wso2.carbon.databridge.core.DataBridgeReceiverService;
+import org.wso2.carbon.databridge.core.DataBridgeSubscriberService;
 import org.wso2.carbon.databridge.core.Utils.AgentSession;
 import org.wso2.carbon.databridge.core.definitionstore.InMemoryStreamDefinitionStore;
 import org.wso2.carbon.databridge.core.exception.DataBridgeException;
@@ -36,6 +38,7 @@ import org.wso2.carbon.databridge.receiver.binary.internal.BinaryDataReceiver;
 import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.siddhi.core.util.EventPrinter;
 import org.wso2.throttle.common.util.DatabridgeServerUtil;
+import org.wso2.throttle.internal.ThrottleServiceValueHolder;
 
 import java.io.IOException;
 import java.util.List;
@@ -76,42 +79,8 @@ public class EventReceivingServer {
 
         DatabridgeServerUtil.setKeyStoreParams();
         DatabridgeServerUtil.setTrustStoreParams();
-        streamDefinitionStore = getStreamDefinitionStore();
-
-        DataBridge databridge = new DataBridge(new AuthenticationHandler() {
-            @Override
-            public boolean authenticate(String userName,
-                                        String password) {
-                return true;// allays authenticate to true
-            }
-
-            @Override
-            public String getTenantDomain(String userName) {
-                return "admin";
-            }
-
-            @Override
-            public int getTenantId(String tenantDomain) throws UserStoreException {
-                return -1234;
-            }
-
-            @Override
-            public void initContext(AgentSession agentSession) {
-                //To change body of implemented methods use File | Settings | File Templates.
-            }
-
-            @Override
-            public void destroyContext(AgentSession agentSession) {
-
-            }
-        }, streamDefinitionStore, DatabridgeServerUtil.getDataBridgeConfigPath());
-
-        streamDefinitionStore.saveStreamDefinitionToStore(DatabridgeServerUtil.loadStream(), -1234);
-        BinaryDataReceiverConfiguration dataReceiverConfiguration = new BinaryDataReceiverConfiguration(securePort, tcpPort);
-        binaryDataReceiver = new BinaryDataReceiver(dataReceiverConfiguration, databridge);
-
-        //register an agent call back to receive events and sent to throttler.
-        databridge.subscribe(new AgentCallback() {
+        DataBridgeSubscriberService receiverService = ThrottleServiceValueHolder.getDataBridgeSubscriberService();
+        receiverService.subscribe(new AgentCallback() {
 
             public void definedStream(StreamDefinition streamDefinition,
                                       int tenantId) {
@@ -142,7 +111,6 @@ public class EventReceivingServer {
 
         });
 
-        binaryDataReceiver.start();
         log.info("Event Receiving Server Started");
     }
 
