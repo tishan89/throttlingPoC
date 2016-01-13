@@ -33,10 +33,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @scr.component name="throttleService.component" immediate="true"
- * @scr.reference name="agentserverservice.service"
- * interface="org.wso2.carbon.databridge.core.DataBridgeSubscriberService" cardinality="1..1"
- * policy="dynamic" bind="setDataBridgeSubscriberService" unbind="unSetDataBridgeSubscriberService"
  */
+
+//scr.reference name="agentserverservice.service"
+//interface="org.wso2.carbon.databridge.core.DataBridgeSubscriberService" cardinality="1..1"
+//policy="dynamic" bind="setDataBridgeSubscriberService" unbind="unSetDataBridgeSubscriberService"
 
 /**
  * OSGi initialization class.
@@ -51,45 +52,45 @@ public class ThrottleDS {
             log.debug("Successfully deployed the input WSO2Event adapter service");
         }
     }
-
-    protected void setDataBridgeSubscriberService(
-            DataBridgeSubscriberService dataBridgeSubscriberService) {
-        if (ThrottleServiceValueHolder.getDataBridgeSubscriberService() == null) {
-            ThrottleServiceValueHolder.registerDataBridgeSubscriberService(dataBridgeSubscriberService);
-
-            dataBridgeSubscriberService.subscribe(new AgentCallback() {
-                @Override
-                public void definedStream(StreamDefinition streamDefinition, int i) {
-
-                }
-
-                @Override
-                public void removeStream(StreamDefinition streamDefinition, int i) {
-
-                }
-
-                @Override
-                public void receive(List<Event> events, Credentials credentials) {
-                    try {
-                        PrivilegedCarbonContext.startTenantFlow();
-                        PrivilegedCarbonContext.getThreadLocalCarbonContext().setTenantId(credentials.getTenantId());
-                        PrivilegedCarbonContext.getThreadLocalCarbonContext().setTenantDomain(credentials.getDomainName());
-                        for (Event event : events) {
-                            //todo
-                            if (log.isDebugEnabled()) {
-                                log.debug("Event received in wso2Event Adapter - " + event);
-                            }
-                        }
-                    } finally {
-                        PrivilegedCarbonContext.endTenantFlow();
-                    }
-                }
-            });
-        }
-    }
-
-    protected void unSetDataBridgeSubscriberService(
-            DataBridgeSubscriberService dataBridgeSubscriberService) {
-
-    }
+//
+//    protected void setDataBridgeSubscriberService(
+//            DataBridgeSubscriberService dataBridgeSubscriberService) {
+//        if (ThrottleServiceValueHolder.getDataBridgeSubscriberService() == null) {
+//            ThrottleServiceValueHolder.registerDataBridgeSubscriberService(dataBridgeSubscriberService);
+//
+//            dataBridgeSubscriberService.subscribe(new AgentCallback() {
+//                @Override
+//                public void definedStream(StreamDefinition streamDefinition, int i) {
+//
+//                }
+//
+//                @Override
+//                public void removeStream(StreamDefinition streamDefinition, int i) {
+//
+//                }
+//
+//                @Override
+//                public void receive(List<Event> events, Credentials credentials) {
+//                    try {
+//                        PrivilegedCarbonContext.startTenantFlow();
+//                        PrivilegedCarbonContext.getThreadLocalCarbonContext().setTenantId(credentials.getTenantId());
+//                        PrivilegedCarbonContext.getThreadLocalCarbonContext().setTenantDomain(credentials.getDomainName());
+//                        for (Event event : events) {
+//                            //todo
+//                            if (log.isDebugEnabled()) {
+//                                log.debug("Event received in wso2Event Adapter - " + event);
+//                            }
+//                        }
+//                    } finally {
+//                        PrivilegedCarbonContext.endTenantFlow();
+//                    }
+//                }
+//            });
+//        }
+//    }
+//
+//    protected void unSetDataBridgeSubscriberService(
+//            DataBridgeSubscriberService dataBridgeSubscriberService) {
+//
+//    }
 }

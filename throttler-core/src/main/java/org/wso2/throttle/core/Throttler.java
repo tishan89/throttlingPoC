@@ -20,7 +20,6 @@ package org.wso2.throttle.core;
 
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.log4j.Logger;
-import org.wso2.carbon.databridge.agent.AgentHolder;
 import org.wso2.carbon.databridge.agent.DataPublisher;
 import org.wso2.carbon.databridge.agent.exception.DataEndpointAgentConfigurationException;
 import org.wso2.carbon.databridge.agent.exception.DataEndpointAuthenticationException;
@@ -28,18 +27,13 @@ import org.wso2.carbon.databridge.agent.exception.DataEndpointConfigurationExcep
 import org.wso2.carbon.databridge.agent.exception.DataEndpointException;
 import org.wso2.carbon.databridge.commons.exception.TransportException;
 import org.wso2.carbon.databridge.commons.utils.DataBridgeCommonsUtils;
-import org.wso2.carbon.databridge.core.exception.DataBridgeException;
-import org.wso2.carbon.databridge.core.exception.StreamDefinitionStoreException;
 import org.wso2.siddhi.core.ExecutionPlanRuntime;
 import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
-import org.wso2.throttle.api.Request;
-import org.wso2.throttle.api.ThrottleLevel;
-import org.wso2.throttle.common.util.DatabridgeServerUtil;
+import org.wso2.throttle.api.ThrottleRequest;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -62,19 +56,21 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Throttler {
     private static final Logger log = Logger.getLogger(Throttler.class);
     private static final String RDBMS_THROTTLE_TABLE_NAME = "ThrottleTable";
-    private static final String RDBMS_THROTTLE_TABLE_COLUMN_KEY = "keyy";
+    private static final String RDBMS_THROTTLE_TABLE_COLUMN_KEY = "throttle_key";
     private static final String RDBMS_THROTTLE_TABLE_COLUMN_ISTHROTTLED = "isThrottled";
 
     private static Throttler throttler;
 
     private SiddhiManager siddhiManager;
     private InputHandler eligibilityStreamInputHandler;
-    private InputHandler requestStreamInputHandler;
     private List<InputHandler> requestStreamInputHandlerList = new ArrayList<InputHandler>();
     private InputHandler globalThrottleStreamInputHandler;
-    private EventReceivingServer eventReceivingServer;
     private static Map<String, ResultContainer> resultMap = new ConcurrentHashMap<String, ResultContainer>();
+
+    private ExecutionPlanRuntime ruleRuntime;
+    private List<String[]> ruleList = new ArrayList<String[]>();
     private int ruleCount = 0;
+
 
     private String hostName = "localhost";      //10.100.5.99
     private DataPublisher dataPublisher = null;
@@ -96,32 +92,29 @@ public class Throttler {
     private void start() {
         siddhiManager = new SiddhiManager();
 
-        String commonExecutionPlan = "define stream EligibilityStream (rule string, messageID string, isEligible bool, key string);\n" +
-                                     "define stream GlobalThrottleStream (key string, isThrottled bool);\n" +
-                                     "\n" +
-                                     "@IndexBy('key')\n" +
-                                     "define table ThrottleTable (key string, isThrottled bool);\n" +
-                                     "\n" +
-                                     "FROM EligibilityStream[isEligible==false]\n" +
-                                     "SELECT rule, messageID, false AS isThrottled\n" +
-                                     "INSERT INTO ThrottleStream;\n" +
-                                     "\n" +
-                                     "FROM EligibilityStream[isEligible==true]\n" +
-                                     "SELECT rule, messageID, isEligible, key\n" +
-                                     "INSERT INTO EligibileStream;\n" +
-                                     "\n" +
-                                     "FROM EligibileStream JOIN ThrottleTable\n" +
-                                     "\tON ThrottleTable.key == EligibileStream.key\n" +
-                                     "SELECT rule, messageID, ThrottleTable.isThrottled AS isThrottled\n" +
-                                     "INSERT INTO ThrottleStream;\n" +
-                                     "\n" +
-                                     "from EligibileStream[not ((EligibileStream.key == ThrottleTable.key) in ThrottleTable)]\n" +
-                                     "select EligibileStream.rule AS rule, EligibileStream.messageID, false AS isThrottled\n" +
-                                     "insert into ThrottleStream;\n" +
-                                     "\n" +
-                                     "from GlobalThrottleStream\n" +
-                                     "select *\n" +
-                                     "insert into ThrottleTable;";
+        String commonExecutionPlan = "" +
+                "define stream EligibilityStream (rule string, messageID string, isEligible bool, key string);\n" +
+                "define stream GlobalThrottleStream (key string, isThrottled bool);\n" +
+                "\n" +
+                "@IndexBy('key')\n" +
+                "define table ThrottleTable (key string, isThrottled bool);\n" +
+                "\n" +
+                "FROM EligibilityStream[isEligible==false]\n" +
+                "SELECT rule, messageID, false AS isThrottled\n" +
+                "INSERT INTO ThrottleStream;\n" +
+                "\n" +
+                "FROM EligibilityStream[isEligible==true]\n" +
+                "SELECT rule, messageID, isEligible, key\n" +
+                "INSERT INTO EligibileStream;\n" +
+                "\n" +
+                "FROM EligibileStream LEFT OUTER JOIN ThrottleTable\n" +
+                "\tON ThrottleTable.key == EligibileStream.key\n" +
+                "SELECT rule, messageID, ifThenElse((ThrottleTable.isThrottled is null),false,ThrottleTable.isThrottled) AS isThrottled\n" +
+                "INSERT INTO ThrottleStream;" +
+                "\n" +
+                "from GlobalThrottleStream\n" +
+                "select *\n" +
+                "insert into ThrottleTable;";
 
         ExecutionPlanRuntime commonExecutionPlanRuntime = siddhiManager.createExecutionPlanRuntime(commonExecutionPlan);
 
@@ -130,33 +123,18 @@ public class Throttler {
             @Override
             public void receive(Event[] events) {
                 for (Event event : events) {
-                    resultMap.get(event.getData(1).toString()).addResult((Boolean) event.getData(2));
+                    resultMap.get(event.getData(1).toString()).addResult((String) event.getData(0), (Boolean) event.getData(2));
                 }
             }
         });
 
         //get and register inputHandler
-        setEligibilityStreamInputHandler(commonExecutionPlanRuntime.getInputHandler("EligibilityStream"));
-        setGlobalThrottleStreamInputHandler(commonExecutionPlanRuntime.getInputHandler("GlobalThrottleStream"));
+        this.eligibilityStreamInputHandler = commonExecutionPlanRuntime.getInputHandler("EligibilityStream");
+        this.globalThrottleStreamInputHandler = commonExecutionPlanRuntime.getInputHandler("GlobalThrottleStream");
 
         commonExecutionPlanRuntime.start();
 
         populateThrottleTable();
-
-        //starts binary server to receive events from global CEP instance
-        eventReceivingServer = new EventReceivingServer();
-        try {
-            eventReceivingServer.start(9611, 9711);
-        } catch (DataBridgeException e) {
-            log.error("Error in starting the Event Receiving Server for throttler" + e.getMessage() , e);
-            throw new RuntimeException("Error in starting the Event Receiving Server for throttler", e);
-        } catch (IOException e) {
-            log.error("Error in starting the Event Receiving Server for throttler" + e.getMessage() , e);
-            throw new RuntimeException("Error in starting the Event Receiving Server for throttler", e);
-        } catch (StreamDefinitionStoreException e) {
-            log.error("Error in starting the Event Receiving Server for throttler" + e.getMessage() , e);
-            throw new RuntimeException("Error in starting the Event Receiving Server for throttler", e);
-        }
 
         //initialize binary data publisher to send requests to global CEP instance
         initDataPublisher();
@@ -165,29 +143,39 @@ public class Throttler {
 
     /**
      * This method lets a user to add a predefined rule (pre-defined as a template), specifying desired parameters.
+     *
      * @param tier
      */
-    public synchronized void addRule(String tier) {
-        deployRuleToLocalCEP(tier);
+    public synchronized void addRule(String rule, String tier) {
+        ruleList.add(new String[]{rule, tier});
         //deployRuleToGlobalCEP(tier);
     }
 
-    //todo: this method has not being implemented completely. Will be done after doing perf tests.
-    private void deployRuleToGlobalCEP(String templateID, String parameter1, String parameter2){
-        String queries = TemplateStore.getEnforcementQuery();
-
-        ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (messageID string, app_key string, api_key string, resource_key string, app_tier string, api_tier string, resource_tier string); " +
-                                                                                    queries);
-
-        GlobalCEPClient globalCEPClient = new GlobalCEPClient();
-        globalCEPClient.deployExecutionPlan(queries);
+    public synchronized void removeRule(String rule, String tier) {
+        ruleList.remove(new String[]{rule, tier});
     }
 
-    private void deployRuleToLocalCEP(String tier){
-        String eligibilityQueries = TemplateStore.getEligibilityQueries(tier);
+//    //todo: this method has not being implemented completely. Will be done after doing perf tests.
+//    private void deployRuleToGlobalCEP(String templateID, String parameter1, String parameter2) {
+//        String queries = QueryTemplateStore.constructEnforcementQuery();
+//
+//        ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (messageID string, app_key string, api_key string, resource_key string, app_tier string, api_tier string, resource_tier string); " +
+//                queries);
+//
+//        GlobalCEPClient globalCEPClient = new GlobalCEPClient();
+//        globalCEPClient.deployExecutionPlan(queries);
+//    }
 
-        ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime("define stream RequestStream (messageID string, app_key string, api_key string, resource_key string, app_tier string, api_tier string, resource_tier string); " +
-                                                                                    eligibilityQueries);
+    public void deployLocalCEPRules() {
+        StringBuilder eligibilityQueriesBuilder = new StringBuilder();
+        eligibilityQueriesBuilder.append("define stream RequestStream (messageID string, throttleKey1 string, throttleKey2 string, throttleKey3 string, " +
+                "throttleTier1 string, throttleTier2 string, throttleTier3 string, properties object); \n");
+        for (String[] rule : ruleList) {
+            eligibilityQueriesBuilder.append(QueryTemplateStore.constructEligibilityQuery(rule[0], rule[1]));
+        }
+
+        ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime(
+                eligibilityQueriesBuilder.toString());
 
         //Add call backs. Here, we take output events and insert into EligibilityStream
         ruleRuntime.addCallback("EligibilityStream", new StreamCallback() {
@@ -204,33 +192,26 @@ public class Throttler {
 
         //get and register input handler for RequestStream, so isThrottled() can use it.
         requestStreamInputHandlerList.add(ruleRuntime.getInputHandler("RequestStream"));
-
-        //Need to know current rule count to provide synchronous API
-        ruleCount = ruleCount + ThrottleLevel.values().length;
+        ruleCount = ruleList.size();
         ruleRuntime.start();
-    }
-
-    //todo
-    public synchronized void removeRule() {
     }
 
 
     /**
-     * Returns whether the given request is throttled.
+     * Returns whether the given throttleRequest is throttled.
      *
-     * @param request User request to APIM which needs to be checked whether throttled
-     * @return Throttle status for current request
+     * @param throttleRequest User throttleRequest to APIM which needs to be checked whether throttled
+     * @return Throttle status for current throttleRequest
      */
-    public boolean isThrottled(Request request) {
+    public boolean isThrottled(ThrottleRequest throttleRequest) {
         UUID uniqueKey = UUID.randomUUID();
         if (ruleCount != 0) {
             ResultContainer result = new ResultContainer(ruleCount);
             resultMap.put(uniqueKey.toString(), result);
-            Object[] requestStreamInput = new Object[]{uniqueKey, request.getAppKey(), request.getApiKey(), request.getResourceKey(),
-                    request.getAppTier(), request.getApiTier(), request.getResourceTier()};
+            Object[] requestStreamInput = new Object[]{uniqueKey, throttleRequest.getThrottleKey1(), throttleRequest.getThrottleKey2(), throttleRequest.getThrottleKey3(),
+                    throttleRequest.getThrottleTier1(), throttleRequest.getThrottleTier2(), throttleRequest.getThrottleTier3(), throttleRequest.getProperties()};
             Iterator<InputHandler> handlerList = requestStreamInputHandlerList.iterator();
-            while(handlerList.hasNext())
-            {
+            while (handlerList.hasNext()) {
                 InputHandler inputHandler = handlerList.next();
                 try {
                     inputHandler.send(requestStreamInput);
@@ -249,8 +230,8 @@ public class Throttler {
                 Thread.currentThread().interrupt();
                 log.error(e.getMessage(), e);
             }
-            if (!isThrottled) {                                           //Only send served request to global throttler
-                sendToGlobalThrottler(requestStreamInput);
+            if (!isThrottled) {                                           //Only send served throttleRequest to global throttler
+                sendToGlobalThrottler(throttleRequest);
             }
             resultMap.remove(uniqueKey);
             return isThrottled;
@@ -263,17 +244,17 @@ public class Throttler {
         if (siddhiManager != null) {
             siddhiManager.shutdown();
         }
-        if (eventReceivingServer != null) {
-            eventReceivingServer.stop();
+        if (ruleRuntime != null) {
+            ruleRuntime.shutdown();
         }
     }
 
 
-
     /**
      * Copies physical ThrottleTable to this instance's in-memory ThrottleTable.
+     * Todo will be removed when siddhi can load data time to time.
      */
-    private void populateThrottleTable(){
+    private void populateThrottleTable() {
         BasicDataSource basicDataSource = new BasicDataSource();
         basicDataSource.setDriverClassName("com.mysql.jdbc.Driver");
         basicDataSource.setUrl("jdbc:mysql://localhost/org_wso2_throttle_DataSource");
@@ -298,15 +279,13 @@ public class Throttler {
                         log.error("Error occurred while sending an event.", e);
                     }
                 }
-            }
-            else {  // Table does not exist
+            } else {  // Table does not exist
                 log.warn("RDBMS ThrottleTable does not exist. Make sure global throttler server is started.");
             }
         } catch (SQLException e) {
             log.error("Error occurred while copying throttle data from global throttler server.", e);
-        }
-        finally {
-            if(connection != null) {
+        } finally {
+            if (connection != null) {
                 try {
                     connection.close();
                 } catch (SQLException e) {
@@ -321,43 +300,24 @@ public class Throttler {
         return eligibilityStreamInputHandler;
     }
 
-    private void setEligibilityStreamInputHandler(InputHandler eligibilityStreamInputHandler) {
-        this.eligibilityStreamInputHandler = eligibilityStreamInputHandler;
-    }
-
-    private InputHandler getRequestStreamInputHandler() {
-        return requestStreamInputHandler;
-    }
-
-    private void setRequestStreamInputHandler(InputHandler requestStreamInputHandler) {
-        this.requestStreamInputHandler = requestStreamInputHandler;
-    }
-
     public InputHandler getGlobalThrottleStreamInputHandler() {
         return globalThrottleStreamInputHandler;
     }
 
-    private void setGlobalThrottleStreamInputHandler(InputHandler globalThrottleStreamInputHandler) {
-        this.globalThrottleStreamInputHandler = globalThrottleStreamInputHandler;
-    }
-
-    private void sendToGlobalThrottler(Object[] data) {
+    private void sendToGlobalThrottler(ThrottleRequest throttleRequest) {
         org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
         event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.3"));
         event.setMetaData(null);
         event.setCorrelationData(null);
-        event.setPayloadData(data);
-
+        event.setPayloadData(new Object[]{throttleRequest.getThrottleKey1(), throttleRequest.getThrottleKey2(), throttleRequest.getThrottleKey3(), throttleRequest.getThrottleTier1(), throttleRequest.getThrottleTier2(), throttleRequest.getThrottleTier3()});
+        event.setArbitraryDataMap(throttleRequest.getProperties());
         dataPublisher.tryPublish(event);
     }
 
     private void initDataPublisher() {
-        AgentHolder.setConfigPath(DatabridgeServerUtil.getDataAgentConfigPath());
-        DatabridgeServerUtil.setTrustStoreParams();
-
         try {
             dataPublisher = new DataPublisher("Binary", "tcp://" + hostName + ":9621",
-                                              "ssl://" + hostName + ":9721", "admin", "admin");
+                    "ssl://" + hostName + ":9721", "admin", "admin");
         } catch (DataEndpointAgentConfigurationException e) {
             log.error(e.getMessage(), e);
         } catch (DataEndpointException e) {

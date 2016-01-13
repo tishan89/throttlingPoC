@@ -27,15 +27,12 @@
     <packaging>pom</packaging>
     <modules>
         <module>throttler-common</module>
-        <!--<module>throttler</module>-->
-        <!--<module>GlobalThrottler</module>-->
-        <!--<module>throttlingPoC.original</module>-->
         <module>throttler-core</module>
     </modules>
 
     <properties>
         <junit.version>4.11</junit.version>
-        <siddhi.version>3.0.2</siddhi.version>
+        <siddhi.version>3.0.4</siddhi.version>
         <carbon.analytics.common.version>5.0.6</carbon.analytics.common.version>
         <carbon.event.processing.version>2.0.6</carbon.event.processing.version>
         <throttler.version>1.0-SNAPSHOT</throttler.version>

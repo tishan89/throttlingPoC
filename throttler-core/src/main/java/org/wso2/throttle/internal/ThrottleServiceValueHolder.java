@@ -23,17 +23,8 @@ import org.wso2.carbon.databridge.core.DataBridgeSubscriberService;
  * Value holder class for OSGi references
  */
 public final class ThrottleServiceValueHolder {
-    private static DataBridgeSubscriberService dataBridgeSubscriberService;
 
     private ThrottleServiceValueHolder() {
     }
 
-    public static void registerDataBridgeSubscriberService(
-            DataBridgeSubscriberService dataBridgeSubscriberService) {
-        ThrottleServiceValueHolder.dataBridgeSubscriberService = dataBridgeSubscriberService;
-    }
-
-    public static DataBridgeSubscriberService getDataBridgeSubscriberService() {
-        return dataBridgeSubscriberService;
-    }
 }

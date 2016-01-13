@@ -27,15 +27,15 @@ import java.util.concurrent.CountDownLatch;
 public class ResultContainer {
     private static final Logger log = Logger.getLogger(ResultContainer.class);
     private CountDownLatch latch;
-    private List<Boolean> results;
+    private List<ThrottleInfoHolder> results;
 
     public ResultContainer(int size) {
         latch = new CountDownLatch(size);
-        results = Collections.synchronizedList(new ArrayList<Boolean>(size));
+        results = Collections.synchronizedList(new ArrayList<ThrottleInfoHolder>(size));
     }
 
-    public void addResult(Boolean result) {
-        results.add(result);
+    public void addResult(String rule, Boolean result) {
+        results.add(new ThrottleInfoHolder(rule, result));
         latch.countDown();
     }
 
@@ -46,11 +46,21 @@ public class ResultContainer {
      */
     public Boolean isThrottled() throws InterruptedException {
         this.latch.await();
-        for (Boolean isThrottled : results) {
-            if (isThrottled) {
-                return isThrottled;
+        for (ThrottleInfoHolder throttleInfoHolder : results) {
+            if (throttleInfoHolder.result) {
+                return true;
             }
         }
         return false;
+    }
+
+    class ThrottleInfoHolder {
+        private boolean result;
+        private String rule;
+
+        public ThrottleInfoHolder(String rule, Boolean result) {
+            this.rule = rule;
+            this.result = result;
+        }
     }
 }
