@@ -28,9 +28,9 @@ public class ThrottleRequest {
     private String throttleKey1;
     private String throttleKey2;
     private String throttleKey3;
-    private String[] throttleTier1;
-    private String[] throttleTier2;
-    private String[] throttleTier3;
+    private String throttleTier1;
+    private String throttleTier2;
+    private String throttleTier3;
     private Map<String, String> properties;
 
 
@@ -41,11 +41,11 @@ public class ThrottleRequest {
      * @param throttleKey2  Level 2 Throttling key  (should be unique)
      * @param throttleKey3  Level 3 Throttling key  (should be unique)
      * @param throttleTier1 Level 1 Throttling Tier
-     * @param throttleTier2 Level 1 Throttling Tier
-     * @param throttleTier3 Level 1 Throttling Tier
+     * @param throttleTier2 Level 2 Throttling Tier
+     * @param throttleTier3 Level 3 Throttling Tier
      * @param properties    other throttling properties
      */
-    public ThrottleRequest(String throttleKey1, String throttleKey2, String throttleKey3, String[] throttleTier1, String[] throttleTier2, String[] throttleTier3, Map<String, String> properties) {
+    public ThrottleRequest(String throttleKey1, String throttleKey2, String throttleKey3, String throttleTier1, String throttleTier2, String throttleTier3, Map<String, String> properties) {
         this.throttleKey1 = throttleKey1;
         this.throttleKey2 = throttleKey2;
         this.throttleKey3 = throttleKey3;
@@ -68,15 +68,15 @@ public class ThrottleRequest {
         return throttleKey3;
     }
 
-    public String[] getThrottleTier1() {
+    public String getThrottleTier1() {
         return throttleTier1;
     }
 
-    public String[] getThrottleTier2() {
+    public String getThrottleTier2() {
         return throttleTier2;
     }
 
-    public String[] getThrottleTier3() {
+    public String getThrottleTier3() {
         return throttleTier3;
     }
 
