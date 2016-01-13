@@ -49,7 +49,7 @@ public class ThrottleDS {
 
     protected void activate(ComponentContext context) {
         if (log.isDebugEnabled()) {
-            log.debug("Successfully deployed the input WSO2Event adapter service");
+            log.debug("Successfully deployed the WSO2 throttling service");
         }
     }
 //
