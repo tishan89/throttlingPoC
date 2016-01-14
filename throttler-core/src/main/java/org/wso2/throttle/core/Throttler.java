@@ -32,18 +32,9 @@ import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
-import org.wso2.throttle.api.ThrottleRequest;
 
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.sql.*;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -68,7 +59,6 @@ public class Throttler {
     private static Map<String, ResultContainer> resultMap = new ConcurrentHashMap<String, ResultContainer>();
 
     private ExecutionPlanRuntime ruleRuntime;
-    private List<String[]> ruleList = new ArrayList<String[]>();
     private int ruleCount = 0;
 
 
@@ -103,12 +93,8 @@ public class Throttler {
                 "SELECT rule, messageID, false AS isThrottled\n" +
                 "INSERT INTO ThrottleStream;\n" +
                 "\n" +
-                "FROM EligibilityStream[isEligible==true]\n" +
-                "SELECT rule, messageID, isEligible, key\n" +
-                "INSERT INTO EligibleStream;\n" +
-                "\n" +
-                "FROM EligibleStream LEFT OUTER JOIN ThrottleTable\n" +
-                "\tON ThrottleTable.key == EligibleStream.key\n" +
+                "FROM EligibilityStream[isEligible==true] LEFT OUTER JOIN ThrottleTable\n" +
+                "\tON ThrottleTable.key == EligibilityStream.key\n" +
                 "SELECT rule, messageID, ifThenElse((ThrottleTable.isThrottled is null),false,ThrottleTable.isThrottled) AS isThrottled\n" +
                 "INSERT INTO ThrottleStream;" +
                 "\n" +
@@ -140,21 +126,6 @@ public class Throttler {
         initDataPublisher();
     }
 
-
-    /**
-     * This method lets a user to add a predefined rule (pre-defined as a template), specifying desired parameters.
-     *
-     * @param tier
-     */
-    public synchronized void addRule(String rule, String tier) {
-        ruleList.add(new String[]{rule, tier});
-        //deployRuleToGlobalCEP(tier);
-    }
-
-    public synchronized void removeRule(String rule, String tier) {
-        ruleList.remove(new String[]{rule, tier});
-    }
-
 //    //todo: this method has not being implemented completely. Will be done after doing perf tests.
 //    private void deployRuleToGlobalCEP(String templateID, String parameter1, String parameter2) {
 //        String queries = QueryTemplateStore.constructEnforcementQuery();
@@ -168,11 +139,13 @@ public class Throttler {
 
     public void deployLocalCEPRules() {
         StringBuilder eligibilityQueriesBuilder = new StringBuilder();
-        eligibilityQueriesBuilder.append("define stream RequestStream (messageID string, throttleKey1 string, throttleKey2 string, throttleKey3 string, " +
-                "throttleTier1 string, throttleTier2 string, throttleTier3 string, properties object); \n");
-        for (String[] rule : ruleList) {
-            eligibilityQueriesBuilder.append(QueryTemplateStore.constructEligibilityQuery(rule[0], rule[1]));
+        eligibilityQueriesBuilder.append("define stream RequestStream (" + QueryTemplateStore.loadThrottlingAttributes() + "); \n");
+
+        for (String eligibilityQuery : QueryTemplateStore.loadThrottlingEligibilityQueries()) {
+            eligibilityQueriesBuilder.append(eligibilityQuery);
+            ruleCount++;
         }
+
 
         ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime(
                 eligibilityQueriesBuilder.toString());
@@ -192,7 +165,6 @@ public class Throttler {
 
         //get and register input handler for RequestStream, so isThrottled() can use it.
         requestStreamInputHandlerList.add(ruleRuntime.getInputHandler("RequestStream"));
-        ruleCount = ruleList.size();
         ruleRuntime.start();
     }
 
@@ -203,18 +175,16 @@ public class Throttler {
      * @param throttleRequest User throttleRequest to APIM which needs to be checked whether throttled
      * @return Throttle status for current throttleRequest
      */
-    public boolean isThrottled(ThrottleRequest throttleRequest) {
+    public boolean isThrottled(Object[] throttleRequest) {
         UUID uniqueKey = UUID.randomUUID();
         if (ruleCount != 0) {
             ResultContainer result = new ResultContainer(ruleCount);
             resultMap.put(uniqueKey.toString(), result);
-            Object[] requestStreamInput = new Object[]{uniqueKey, throttleRequest.getThrottleKey1(), throttleRequest.getThrottleKey2(), throttleRequest.getThrottleKey3(),
-                    throttleRequest.getThrottleTier1(), throttleRequest.getThrottleTier2(), throttleRequest.getThrottleTier3(), throttleRequest.getProperties()};
             Iterator<InputHandler> handlerList = requestStreamInputHandlerList.iterator();
             while (handlerList.hasNext()) {
                 InputHandler inputHandler = handlerList.next();
                 try {
-                    inputHandler.send(requestStreamInput);
+                    inputHandler.send(Arrays.copyOf(throttleRequest, throttleRequest.length));
                 } catch (InterruptedException e) {
                     //interrupt current thread so that interrupt can propagate
                     Thread.currentThread().interrupt();
@@ -248,7 +218,6 @@ public class Throttler {
             ruleRuntime.shutdown();
         }
     }
-
 
     /**
      * Copies physical ThrottleTable to this instance's in-memory ThrottleTable.
@@ -304,13 +273,12 @@ public class Throttler {
         return globalThrottleStreamInputHandler;
     }
 
-    private void sendToGlobalThrottler(ThrottleRequest throttleRequest) {
+    private void sendToGlobalThrottler(Object[] throttleRequest) {
         org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
         event.setStreamId(DataBridgeCommonsUtils.generateStreamId("org.wso2.throttle.request.stream", "1.0.3"));
         event.setMetaData(null);
         event.setCorrelationData(null);
-        event.setPayloadData(new Object[]{throttleRequest.getThrottleKey1(), throttleRequest.getThrottleKey2(), throttleRequest.getThrottleKey3(), throttleRequest.getThrottleTier1(), throttleRequest.getThrottleTier2(), throttleRequest.getThrottleTier3()});
-        event.setArbitraryDataMap(throttleRequest.getProperties());
+        event.setPayloadData(throttleRequest);
         dataPublisher.tryPublish(event);
     }
 

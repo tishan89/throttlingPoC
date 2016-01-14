@@ -19,23 +19,33 @@
 package org.wso2.throttle.core;
 
 public class QueryTemplateStore {
-    private static String eligibilityQueryTemplate = "" +
-            "FROM RequestStream\n" +
-            "SELECT \"$RULE_$TIER\" AS rule, messageID, ($RULE_tier==\"$TIER\") AS isEligible, $RULE_key AS key \n" +
-            "INSERT INTO EligibilityStream;";
 
-    //todo: improve validation
-    public static String constructEligibilityQuery(String rule, String tier) {
-        StringBuilder builder = new StringBuilder();
-        String query = eligibilityQueryTemplate.replaceAll("$RULE", rule.toLowerCase());
-        query = query.replaceAll("$TIER", tier.toLowerCase());
-        builder.append(query);
-        builder.append("\n");
-        return builder.toString();
+//    private static String eligibilityQueryTemplate = "" +
+//            "FROM RequestStream\n" +
+//            "SELECT \"$LEVEL_$TIER\" AS rule, messageID, ($LEVEL_tier==\"$TIER\") AS isEligible, $LEVEL_key AS key \n" +
+//            "INSERT INTO EligibilityStream;";
+//
+//    public static String constructEligibilityQuery(String level, String tier) {
+//        StringBuilder builder = new StringBuilder();
+//        String query = eligibilityQueryTemplate.replaceAll("$LEVEL", level.toLowerCase());
+//        query = query.replaceAll("$TIER", tier.toLowerCase());
+//        builder.append(query);
+//        builder.append("\n");
+//        return builder.toString();
+//    }
+
+    public static String loadThrottlingAttributes() {
+        return "messageID string, app_key string, api_key string, resource_key string, app_tier string, api_tier string, resource_tier string, verb string, ip_range string";
     }
 
-    public static String constructEnforcementQuery() {
-        //todo: implement
-        return "";
+    public static String[] loadThrottlingEligibilityQueries() {
+        return new String[]{
+                "FROM RequestStream\n" +
+                        "SELECT 'app_gold' AS rule, messageID, (( not(app_key is null ) AND api_tier=='gold' )  AS isEligible, concat('app_gold_',app_key,'_key') AS key, verb, ip_range\n" +
+                        "INSERT INTO EligibilityStream;\n",
+
+                "FROM RequestStream\n" +
+                        "SELECT 'app' AS rule, messageID, true AS isEligible, concat('app_',app_key,'_key') AS key, verb, ip_range\n" +
+                        "INSERT INTO EligibilityStream;\n"};
     }
 }

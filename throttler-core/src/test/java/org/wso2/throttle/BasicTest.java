@@ -1,16 +1,6 @@
 package org.wso2.throttle;
 
 import org.apache.log4j.Logger;
-import org.junit.Test;
-import org.wso2.throttle.api.ThrottleRequest;
-import org.wso2.throttle.core.Throttler;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 public class BasicTest {
     private static final Logger log = Logger.getLogger(BasicTest.class);
