@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2010, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2016, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
  *  WSO2 Inc. licenses this file to you under the Apache License,
  *  Version 2.0 (the "License"); you may not use this file except
@@ -17,32 +17,6 @@
  */
 
 package org.wso2.throttle.core;
-
-import org.apache.log4j.Logger;
-import org.wso2.carbon.databridge.commons.Credentials;
-import org.wso2.carbon.databridge.commons.Event;
-import org.wso2.carbon.databridge.commons.StreamDefinition;
-import org.wso2.carbon.databridge.commons.exception.MalformedStreamDefinitionException;
-import org.wso2.carbon.databridge.commons.utils.EventDefinitionConverterUtils;
-import org.wso2.carbon.databridge.core.AgentCallback;
-import org.wso2.carbon.databridge.core.DataBridge;
-import org.wso2.carbon.databridge.core.DataBridgeReceiverService;
-import org.wso2.carbon.databridge.core.DataBridgeSubscriberService;
-import org.wso2.carbon.databridge.core.Utils.AgentSession;
-import org.wso2.carbon.databridge.core.definitionstore.InMemoryStreamDefinitionStore;
-import org.wso2.carbon.databridge.core.exception.DataBridgeException;
-import org.wso2.carbon.databridge.core.exception.StreamDefinitionStoreException;
-import org.wso2.carbon.databridge.core.internal.authentication.AuthenticationHandler;
-import org.wso2.carbon.databridge.receiver.binary.conf.BinaryDataReceiverConfiguration;
-import org.wso2.carbon.databridge.receiver.binary.internal.BinaryDataReceiver;
-import org.wso2.carbon.user.api.UserStoreException;
-import org.wso2.siddhi.core.util.EventPrinter;
-import org.wso2.throttle.common.util.DatabridgeServerUtil;
-import org.wso2.throttle.internal.ThrottleServiceValueHolder;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Borrowed this class from org.wso2.carbon.databridge.agent.test.binary.BinaryTestServer and modified.

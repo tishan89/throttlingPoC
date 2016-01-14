@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2010, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2016, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
  *  WSO2 Inc. licenses this file to you under the Apache License,
  *  Version 2.0 (the "License"); you may not use this file except
@@ -17,11 +17,6 @@
  */
 
 package org.wso2.throttle.core;
-
-import org.apache.log4j.Logger;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class GlobalTemplateStore {
 //    private static final Logger log = Logger.getLogger(GlobalTemplateStore.class);
