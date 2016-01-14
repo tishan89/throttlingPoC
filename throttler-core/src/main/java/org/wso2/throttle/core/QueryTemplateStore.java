@@ -18,6 +18,9 @@
 
 package org.wso2.throttle.core;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class QueryTemplateStore {
 
 //    private static String eligibilityQueryTemplate = "" +
@@ -33,19 +36,32 @@ public class QueryTemplateStore {
 //        builder.append("\n");
 //        return builder.toString();
 //    }
+    private List<String> queries;
 
-    public static String loadThrottlingAttributes() {
+    //private constructor
+    private QueryTemplateStore(){
+        queries = new ArrayList<String>();
+    }
+
+    public static QueryTemplateStore getInstance(){
+        return QueryTemplateStoreValueHolder.INSTANCE;
+    }
+
+    public String loadThrottlingAttributes() {
         return "messageID string, app_key string, api_key string, resource_key string, app_tier string, api_tier string, resource_tier string, verb string, ip_range string";
     }
 
-    public static String[] loadThrottlingEligibilityQueries() {
-        return new String[]{
-                "FROM RequestStream\n" +
-                        "SELECT 'app_gold' AS rule, messageID, (( not(app_key is null ) AND api_tier=='gold' )  AS isEligible, concat('app_gold_',app_key,'_key') AS key, verb, ip_range\n" +
-                        "INSERT INTO EligibilityStream;\n",
+    public List<String> loadThrottlingEligibilityQueries() {
+        return queries;
+    }
 
-                "FROM RequestStream\n" +
-                        "SELECT 'app' AS rule, messageID, true AS isEligible, concat('app_',app_key,'_key') AS key, verb, ip_range\n" +
-                        "INSERT INTO EligibilityStream;\n"};
+    public void addThrottlingEligibilityQuery(String query){
+        queries.add(query);
+    }
+
+
+    // Loaded by class loader on first invocation. Hence thread safe plus achieves lazy loading.
+    private static class QueryTemplateStoreValueHolder{
+        private static final QueryTemplateStore INSTANCE = new QueryTemplateStore();
     }
 }

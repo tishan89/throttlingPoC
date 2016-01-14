@@ -32,9 +32,21 @@ import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.input.InputHandler;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
+import org.wso2.throttle.api.Policy;
+import org.wso2.throttle.exception.ThrottleConfigurationException;
+import org.wso2.throttle.util.ThrottlePolicyLoader;
 
-import java.sql.*;
-import java.util.*;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -122,8 +134,24 @@ public class Throttler {
 
         populateThrottleTable();
 
+        try {
+            populateThrottlingPolicies();
+        } catch (ThrottleConfigurationException e) {
+            log.error("Error loading throttling policies from file. " + e.getMessage(), e);
+        }
+
         //initialize binary data publisher to send requests to global CEP instance
         initDataPublisher();
+    }
+
+    /**
+     * Reads throttling policy file and load {@link org.wso2.throttle.core.QueryTemplateStore}
+     * @throws ThrottleConfigurationException
+     */
+    private void populateThrottlingPolicies() throws ThrottleConfigurationException {
+        for(Policy policy : ThrottlePolicyLoader.loadThrottlingPolicies()){
+            QueryTemplateStore.getInstance().addThrottlingEligibilityQuery(policy.getEligibilityQuery());
+        }
     }
 
 //    //todo: this method has not being implemented completely. Will be done after doing perf tests.
@@ -139,9 +167,10 @@ public class Throttler {
 
     public void deployLocalCEPRules() {
         StringBuilder eligibilityQueriesBuilder = new StringBuilder();
-        eligibilityQueriesBuilder.append("define stream RequestStream (" + QueryTemplateStore.loadThrottlingAttributes() + "); \n");
+        eligibilityQueriesBuilder.append("define stream RequestStream (" + QueryTemplateStore.getInstance()
+                .loadThrottlingAttributes() + "); \n");
 
-        for (String eligibilityQuery : QueryTemplateStore.loadThrottlingEligibilityQueries()) {
+        for (String eligibilityQuery : QueryTemplateStore.getInstance().loadThrottlingEligibilityQueries()) {
             eligibilityQueriesBuilder.append(eligibilityQuery);
             ruleCount++;
         }
