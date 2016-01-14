@@ -46,7 +46,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -205,8 +204,9 @@ public class Throttler {
      * @return Throttle status for current throttleRequest
      */
     public boolean isThrottled(Object[] throttleRequest) {
-        UUID uniqueKey = UUID.randomUUID();
+        //UUID uniqueKey = UUID.randomUUID();
         if (ruleCount != 0) {
+            String uniqueKey = (String) throttleRequest[0];
             ResultContainer result = new ResultContainer(ruleCount);
             resultMap.put(uniqueKey.toString(), result);
             Iterator<InputHandler> handlerList = requestStreamInputHandlerList.iterator();
