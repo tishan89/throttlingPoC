@@ -32,7 +32,7 @@
 
     <properties>
         <junit.version>4.11</junit.version>
-        <siddhi.version>3.0.4</siddhi.version>
+        <siddhi.version>3.0.5-SNAPSHOT</siddhi.version>
         <carbon.analytics.common.version>5.0.6</carbon.analytics.common.version>
         <carbon.event.processing.version>2.0.6</carbon.event.processing.version>
         <throttler.version>1.0-SNAPSHOT</throttler.version>
