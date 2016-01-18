@@ -104,7 +104,7 @@ public class Throttler {
                 "SELECT rule, messageID, false AS isThrottled\n" +
                 "INSERT INTO ThrottleStream;\n" +
                 "\n" +
-                "FROM EligibilityStream[isEligible==true] LEFT OUTER JOIN ThrottleTable\n" +
+                "FROM EligibilityStream[isEligible==true]#window.length(1) LEFT OUTER JOIN ThrottleTable\n" +
                 "\tON ThrottleTable.key == EligibilityStream.key\n" +
                 "SELECT rule, messageID, ifThenElse((ThrottleTable.isThrottled is null),false,ThrottleTable.isThrottled) AS isThrottled\n" +
                 "INSERT INTO ThrottleStream;" +
