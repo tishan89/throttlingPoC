@@ -48,7 +48,7 @@ public class QueryTemplateStore {
     }
 
     public String loadThrottlingAttributes() {
-        return "messageID string, app_key string, api_key string, resource_key string, app_tier string, api_tier string, resource_tier string, verb string, ip_range string";
+        return "messageID string, app_key string, api_key string, resource_key string, app_tier string, api_tier string, resource_tier string, verb string, ip string";
     }
 
     public List<String> loadThrottlingEligibilityQueries() {
