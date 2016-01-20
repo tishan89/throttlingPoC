@@ -33,6 +33,11 @@
             <version>${siddhi.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.wso2.siddhi</groupId>
+            <artifactId>siddhi-extension-event-table</artifactId>
+            <version>${siddhi.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.wso2.throttle</groupId>
             <artifactId>throttler-common</artifactId>
             <version>${throttler.version}</version>

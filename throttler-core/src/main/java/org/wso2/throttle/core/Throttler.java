@@ -36,11 +36,7 @@ import org.wso2.throttle.api.Policy;
 import org.wso2.throttle.exception.ThrottleConfigurationException;
 import org.wso2.throttle.util.ThrottlePolicyLoader;
 
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import javax.sql.DataSource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -92,26 +88,23 @@ public class Throttler {
      */
     private void start() {
         siddhiManager = new SiddhiManager();
+        siddhiManager.setDataSource("org_wso2_throttle_DataSource", getDataSource());
 
         String commonExecutionPlan = "" +
                 "define stream EligibilityStream (rule string, messageID string, isEligible bool, key string);\n" +
-                "define stream GlobalThrottleStream (key string, isThrottled bool);\n" +
                 "\n" +
-                "@IndexBy('key')\n" +
-                "define table ThrottleTable (key string, isThrottled bool);\n" +
+                "@From(eventtable='rdbms', datasource.name='org_wso2_throttle_DataSource', " +
+                "table.name='ThrottleTable')" +
+                "define table ThrottleTable (THROTTLE_KEY string, isThrottled bool);\n" +
                 "\n" +
                 "FROM EligibilityStream[isEligible==false]\n" +
                 "SELECT rule, messageID, false AS isThrottled\n" +
                 "INSERT INTO ThrottleStream;\n" +
                 "\n" +
                 "FROM EligibilityStream[isEligible==true]#window.length(1) LEFT OUTER JOIN ThrottleTable\n" +
-                "\tON ThrottleTable.key == EligibilityStream.key\n" +
+                "\tON ThrottleTable.THROTTLE_KEY == EligibilityStream.key\n" +
                 "SELECT rule, messageID, ifThenElse((ThrottleTable.isThrottled is null),false,ThrottleTable.isThrottled) AS isThrottled\n" +
-                "INSERT INTO ThrottleStream;" +
-                "\n" +
-                "from GlobalThrottleStream\n" +
-                "select *\n" +
-                "insert into ThrottleTable;";
+                "INSERT INTO ThrottleStream;";
 
         ExecutionPlanRuntime commonExecutionPlanRuntime = siddhiManager.createExecutionPlanRuntime(commonExecutionPlan);
 
@@ -127,21 +120,22 @@ public class Throttler {
 
         //get and register inputHandler
         this.eligibilityStreamInputHandler = commonExecutionPlanRuntime.getInputHandler("EligibilityStream");
-        this.globalThrottleStreamInputHandler = commonExecutionPlanRuntime.getInputHandler("GlobalThrottleStream");
 
         commonExecutionPlanRuntime.start();
-
-        populateThrottleTable();
 
         try {
             populateThrottlingPolicies();
         } catch (ThrottleConfigurationException e) {
             log.error("Error loading throttling policies from file. " + e.getMessage(), e);
         }
+        
+        deployLocalCEPRules();      //todo ideally caller should call this in future
 
         //initialize binary data publisher to send requests to global CEP instance
         initDataPublisher();
     }
+
+
 
     /**
      * Reads throttling policy file and load {@link org.wso2.throttle.core.QueryTemplateStore}
@@ -248,58 +242,18 @@ public class Throttler {
         }
     }
 
-    /**
-     * Copies physical ThrottleTable to this instance's in-memory ThrottleTable.
-     * Todo will be removed when siddhi can load data time to time.
-     */
-    private void populateThrottleTable() {
+    private DataSource getDataSource() {
         BasicDataSource basicDataSource = new BasicDataSource();
         basicDataSource.setDriverClassName("com.mysql.jdbc.Driver");
         basicDataSource.setUrl("jdbc:mysql://localhost/org_wso2_throttle_DataSource");
         basicDataSource.setUsername("root");
-        basicDataSource.setPassword("root");
-
-        Connection connection = null;
-        try {
-            connection = basicDataSource.getConnection();
-            DatabaseMetaData dbm = connection.getMetaData();
-            // check if "ThrottleTable" table is there
-            ResultSet tables = dbm.getTables(null, null, RDBMS_THROTTLE_TABLE_NAME, null);
-            if (tables.next()) { // Table exists
-                PreparedStatement stmt = connection.prepareStatement("SELECT * FROM " + RDBMS_THROTTLE_TABLE_NAME);
-                ResultSet resultSet = stmt.executeQuery();
-                while (resultSet.next()) {
-                    String key = resultSet.getString(RDBMS_THROTTLE_TABLE_COLUMN_KEY);
-                    Boolean isThrottled = resultSet.getBoolean(RDBMS_THROTTLE_TABLE_COLUMN_ISTHROTTLED);
-                    try {
-                        getGlobalThrottleStreamInputHandler().send(new Object[]{key, isThrottled});
-                    } catch (InterruptedException e) {
-                        log.error("Error occurred while sending an event.", e);
-                    }
-                }
-            } else {  // Table does not exist
-                log.warn("RDBMS ThrottleTable does not exist. Make sure global throttler server is started.");
-            }
-        } catch (SQLException e) {
-            log.error("Error occurred while copying throttle data from global throttler server.", e);
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    log.error("Error occurred while closing database connection.", e);
-                }
-            }
-        }
+        basicDataSource.setPassword("");
+        return basicDataSource;
     }
 
 
     private InputHandler getEligibilityStreamInputHandler() {
         return eligibilityStreamInputHandler;
-    }
-
-    public InputHandler getGlobalThrottleStreamInputHandler() {
-        return globalThrottleStreamInputHandler;
     }
 
     private void sendToGlobalThrottler(Object[] throttleRequest) {
