@@ -21,20 +21,14 @@ package org.wso2.throttle.internal;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.osgi.service.component.ComponentContext;
+import org.wso2.carbon.ndatasource.core.DataSourceService;
 
 /**
- * @scr.component name="throttleService.component" immediate="true"
+ * @scr.component name="throttle.cep.service.component" immediate="true"
+ * @scr.reference name="org.wso2.carbon.ndatasource" interface="org.wso2.carbon.ndatasource.core.DataSourceService"
+ * cardinality="1..1" policy="dynamic" bind="setDataSourceService" unbind="unsetDataSourceService"
  */
 
-//scr.reference name="agentserverservice.service"
-//interface="org.wso2.carbon.databridge.core.DataBridgeSubscriberService" cardinality="1..1"
-//policy="dynamic" bind="setDataBridgeSubscriberService" unbind="unSetDataBridgeSubscriberService"
-
-/**
- * OSGi initialization class.
- * This class will get DataBridgeSubscriberService upon initialization and store in
- * {@link org.wso2.throttle.internal.ThrottleServiceValueHolder} to be used by {@link org.wso2.throttle.core.EventReceivingServer}
- */
 public class ThrottleDS {
     private static final Log log = LogFactory.getLog(ThrottleDS.class);
 
@@ -43,7 +37,21 @@ public class ThrottleDS {
             log.debug("Successfully deployed the WSO2 throttling service");
         }
     }
-//
+
+    protected void deactivate(ComponentContext context){
+        if (log.isDebugEnabled()) {
+            log.debug("Successfully deactivated the WSO2 throttling service");
+        }
+    }
+
+    protected void setDataSourceService(DataSourceService dataSourceService) {
+        ThrottleServiceValueHolder.setDataSourceService(dataSourceService);
+    }
+
+    protected void unsetDataSourceService(DataSourceService dataSourceService) {
+        ThrottleServiceValueHolder.setDataSourceService(null);
+    }
+
 //    protected void setDataBridgeSubscriberService(
 //            DataBridgeSubscriberService dataBridgeSubscriberService) {
 //        if (ThrottleServiceValueHolder.getDataBridgeSubscriberService() == null) {

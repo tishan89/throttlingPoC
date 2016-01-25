@@ -18,7 +18,6 @@
 
 package org.wso2.throttle.core;
 
-import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.log4j.Logger;
 import org.wso2.carbon.databridge.agent.DataPublisher;
 import org.wso2.carbon.databridge.agent.exception.DataEndpointAgentConfigurationException;
@@ -36,7 +35,6 @@ import org.wso2.throttle.api.Policy;
 import org.wso2.throttle.exception.ThrottleConfigurationException;
 import org.wso2.throttle.util.ThrottleHelper;
 
-import javax.sql.DataSource;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -85,7 +83,7 @@ public class Throttler {
      */
     private void start() {
         siddhiManager = new SiddhiManager();
-        siddhiManager.setDataSource("org_wso2_throttle_DataSource", getDataSource());
+        ThrottleHelper.loadDataSourceConfiguration(siddhiManager);
 
         String commonExecutionPlan = "" +
                 "define stream EligibilityStream (rule string, messageID string, isEligible bool, key string);\n" +
@@ -238,15 +236,6 @@ public class Throttler {
         if (ruleRuntime != null) {
             ruleRuntime.shutdown();
         }
-    }
-
-    private DataSource getDataSource() {
-        BasicDataSource basicDataSource = new BasicDataSource();
-        basicDataSource.setDriverClassName("com.mysql.jdbc.Driver");
-        basicDataSource.setUrl("jdbc:mysql://localhost/org_wso2_throttle_DataSource");
-        basicDataSource.setUsername("root");
-        basicDataSource.setPassword("");
-        return basicDataSource;
     }
 
 

@@ -17,12 +17,22 @@
  */
 package org.wso2.throttle.internal;
 
+import org.wso2.carbon.ndatasource.core.DataSourceService;
+
 /**
  * Value holder class for OSGi references
  */
 public final class ThrottleServiceValueHolder {
+    private static DataSourceService dataSourceService;
 
     private ThrottleServiceValueHolder() {
     }
 
+    public static DataSourceService getDataSourceService() {
+        return dataSourceService;
+    }
+
+    public static void setDataSourceService(DataSourceService dataSourceService) {
+        ThrottleServiceValueHolder.dataSourceService = dataSourceService;
+    }
 }

@@ -21,11 +21,18 @@ package org.wso2.throttle.util;
 import org.apache.axiom.om.OMElement;
 import org.apache.axiom.om.impl.builder.StAXOMBuilder;
 import org.apache.log4j.Logger;
+import org.wso2.carbon.context.PrivilegedCarbonContext;
+import org.wso2.carbon.ndatasource.common.DataSourceException;
+import org.wso2.carbon.ndatasource.core.CarbonDataSource;
+import org.wso2.carbon.ndatasource.core.DataSourceManager;
 import org.wso2.carbon.utils.ServerConstants;
+import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.throttle.api.Policy;
 import org.wso2.throttle.core.CEPConfig;
 import org.wso2.throttle.exception.ThrottleConfigurationException;
+import org.wso2.throttle.internal.ThrottleServiceValueHolder;
 
+import javax.sql.DataSource;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -177,6 +184,31 @@ public class ThrottleHelper {
             } catch (IOException e) {
                 log.error("Can not shutdown the input stream", e);
             }
+        }
+    }
+
+    /**
+     * Loads carbon data-sources into local Siddhi Manager instance
+     * @param siddhiManager local siddhi manager instance
+     */
+    public static void loadDataSourceConfiguration(SiddhiManager siddhiManager) {
+        try {
+            int tenantId = PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantId();
+            if (tenantId > -1) {
+                DataSourceManager.getInstance().initTenant(tenantId);
+            }
+            List<CarbonDataSource> dataSources = ThrottleServiceValueHolder.getDataSourceService().getAllDataSources();
+            for (CarbonDataSource cds : dataSources) {
+                try {
+                    if (cds.getDSObject() instanceof DataSource) {
+                        siddhiManager.setDataSource(cds.getDSMInfo().getName(), (DataSource) cds.getDSObject());
+                    }
+                } catch (Exception e) {
+                    log.error("Unable to add the datasource" + cds.getDSMInfo().getName(), e);
+                }
+            }
+        } catch (DataSourceException e) {
+            log.error("Unable to populate the data sources in Siddhi engine.", e);
         }
     }
 
