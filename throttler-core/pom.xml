@@ -58,6 +58,11 @@
             <version>${carbon.analytics.common.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.wso2.carbon.analytics-common</groupId>
+            <artifactId>org.wso2.carbon.event.application.deployer</artifactId>
+            <version>${carbon.analytics.common.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.wso2.carbon.event-processing</groupId>
             <artifactId>org.wso2.carbon.event.processor.stub</artifactId>
             <version>${carbon.event.processing.version}</version>
@@ -121,6 +126,7 @@
                             *;resolution:=optional
                         </Import-Package>
                         <DynamicImport-Package>*</DynamicImport-Package>
+                        <Axis2Deployer>ThrottlingPolicyDeployer</Axis2Deployer>
                     </instructions>
                 </configuration>
             </plugin>

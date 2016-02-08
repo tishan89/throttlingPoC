@@ -36,11 +36,9 @@ import org.wso2.throttle.exception.ThrottleConfigurationException;
 import org.wso2.throttle.util.ThrottleHelper;
 
 import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Class which does throttling.
@@ -56,17 +54,19 @@ public class Throttler {
 
     private SiddhiManager siddhiManager;
     private InputHandler eligibilityStreamInputHandler;
-    private List<InputHandler> requestStreamInputHandlerList = new CopyOnWriteArrayList<InputHandler>();
+    private Map<String,InputHandler> requestStreamInputHandlerMap = new ConcurrentHashMap<String, InputHandler>();
+    private Map<String,ExecutionPlanRuntime> ruleRuntimeMap = new ConcurrentHashMap<String, ExecutionPlanRuntime>();
     private static Map<String, ResultContainer> resultMap = new ConcurrentHashMap<String, ResultContainer>();
 
-    private ExecutionPlanRuntime ruleRuntime;
-    private int ruleCount = 0;
+    private AtomicInteger ruleCount = new AtomicInteger(0);
 
+    private ExecutionPlanRuntime commonExecutionPlanRuntime;
 
     private DataPublisher dataPublisher = null;
     private String streamID;
 
     private CEPConfig cepConfig;
+
     private Throttler() {
     }
 
@@ -101,7 +101,7 @@ public class Throttler {
                 "SELECT rule, messageID, ifThenElse((ThrottleTable.isThrottled is null),false,ThrottleTable.isThrottled) AS isThrottled\n" +
                 "INSERT INTO ThrottleStream;";
 
-        ExecutionPlanRuntime commonExecutionPlanRuntime = siddhiManager.createExecutionPlanRuntime(commonExecutionPlan);
+        commonExecutionPlanRuntime = siddhiManager.createExecutionPlanRuntime(commonExecutionPlan);
 
         //add callback to get local throttling result and add it to ResultContainer
         commonExecutionPlanRuntime.addCallback("ThrottleStream", new StreamCallback() {
@@ -119,28 +119,13 @@ public class Throttler {
         commonExecutionPlanRuntime.start();
 
         try {
-            populateThrottlingPolicies();
             cepConfig = ThrottleHelper.loadCEPConfig();
         } catch (ThrottleConfigurationException e) {
             log.error("Error in initializing throttling engine. " + e.getMessage(), e);
         }
-        
-        deployLocalCEPRules();      //todo ideally caller should call this in future
 
         //initialize binary data publisher to send requests to global CEP instance
         initDataPublisher();
-    }
-
-
-
-    /**
-     * Reads throttling policy file and load {@link org.wso2.throttle.core.QueryTemplateStore}
-     * @throws ThrottleConfigurationException
-     */
-    private void populateThrottlingPolicies() throws ThrottleConfigurationException {
-        for(Policy policy : ThrottleHelper.loadThrottlingPolicies()){
-            QueryTemplateStore.getInstance().addThrottlingEligibilityQuery(policy.getEligibilityQuery());
-        }
     }
 
 //    //todo: this method has not being implemented completely. Will be done after doing perf tests.
@@ -154,16 +139,19 @@ public class Throttler {
 //        globalCEPClient.deployExecutionPlan(queries);
 //    }
 
-    public void deployLocalCEPRules() {
+    /**
+     * Deploy the provided policy file and store the references for usages. Each policy will be deployed as a
+     * separate ExecutionPlans and will be connected with common ExecutionPlan using call backs. Each policy will
+     * return a single throttling decision. Throttling decision of a request is the aggregation od these decisions.
+     * @param policy
+     * @throws ThrottleConfigurationException
+     */
+    protected void deployLocalCEPRules(Policy policy) throws ThrottleConfigurationException {
+        String name = policy.getName();
         StringBuilder eligibilityQueriesBuilder = new StringBuilder();
         eligibilityQueriesBuilder.append("define stream RequestStream (" + QueryTemplateStore.getInstance()
                 .loadThrottlingAttributes() + "); \n");
-
-        for (String eligibilityQuery : QueryTemplateStore.getInstance().loadThrottlingEligibilityQueries()) {
-            eligibilityQueriesBuilder.append(eligibilityQuery);
-            ruleCount++;
-        }
-
+        eligibilityQueriesBuilder.append(policy.getEligibilityQuery());
 
         ExecutionPlanRuntime ruleRuntime = siddhiManager.createExecutionPlanRuntime(
                 eligibilityQueriesBuilder.toString());
@@ -181,9 +169,33 @@ public class Throttler {
             }
         });
 
-        //get and register input handler for RequestStream, so isThrottled() can use it.
-        requestStreamInputHandlerList.add(ruleRuntime.getInputHandler("RequestStream"));
         ruleRuntime.start();
+
+        //get and register input handler for RequestStream, so isThrottled() can use it.
+        if (!requestStreamInputHandlerMap.containsKey(name)) {
+            requestStreamInputHandlerMap.put(name, ruleRuntime.getInputHandler("RequestStream"));
+            ruleRuntimeMap.put(name, ruleRuntime);
+            ruleCount.incrementAndGet();
+        } else {
+            throw new ThrottleConfigurationException("Throttling policy configuration with name " + name + "is " +
+                    "already defined. Please create a policy with a different name.");
+        }
+
+    }
+
+    /**
+     * Undeploy the throttling policy with given name if already deployed.
+     * @param policyName
+     */
+    protected void undeployLocalCEPRules(String policyName){
+        ExecutionPlanRuntime ruleRuntime = ruleRuntimeMap.get(policyName);
+        if(ruleRuntime != null){
+            ruleCount.decrementAndGet();
+            requestStreamInputHandlerMap.remove(policyName);
+            ruleRuntime.shutdown();
+            ruleRuntimeMap.remove(policyName);
+        }
+
     }
 
 
@@ -194,13 +206,11 @@ public class Throttler {
      * @return Throttle status for current throttleRequest
      */
     public boolean isThrottled(Object[] throttleRequest) {
-        if (ruleCount != 0) {
+        if (ruleCount.get() != 0) {
             String uniqueKey = (String) throttleRequest[0];
-            ResultContainer result = new ResultContainer(ruleCount);
+            ResultContainer result = new ResultContainer(ruleCount.get());
             resultMap.put(uniqueKey.toString(), result);
-            Iterator<InputHandler> handlerList = requestStreamInputHandlerList.iterator();
-            while (handlerList.hasNext()) {
-                InputHandler inputHandler = handlerList.next();
+            for(InputHandler inputHandler : requestStreamInputHandlerMap.values()) {
                 try {
                     inputHandler.send(Arrays.copyOf(throttleRequest, throttleRequest.length));
                 } catch (InterruptedException e) {
@@ -213,7 +223,9 @@ public class Throttler {
             boolean isThrottled = false;
             try {
                 isThrottled = result.isThrottled();
-                log.info("Throttling status for request to API " + throttleRequest[2] + " is " + isThrottled);
+                if (log.isDebugEnabled()) {
+                    log.debug("Throttling status for request to API " + throttleRequest[2] + " is " + isThrottled);
+                }
             } catch (InterruptedException e) {
                 //interrupt current thread so that interrupt can propagate
                 Thread.currentThread().interrupt();
@@ -233,8 +245,8 @@ public class Throttler {
         if (siddhiManager != null) {
             siddhiManager.shutdown();
         }
-        if (ruleRuntime != null) {
-            ruleRuntime.shutdown();
+        if (commonExecutionPlanRuntime != null) {
+            commonExecutionPlanRuntime.shutdown();
         }
     }
 
@@ -244,11 +256,8 @@ public class Throttler {
     }
 
     private void sendToGlobalThrottler(Object[] throttleRequest) {
-        org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event();
-        event.setStreamId(streamID);
-        event.setMetaData(null);
-        event.setCorrelationData(null);
-        event.setPayloadData(throttleRequest);
+        org.wso2.carbon.databridge.commons.Event event = new org.wso2.carbon.databridge.commons.Event(streamID,
+                System.currentTimeMillis(),null,null,throttleRequest);
         dataPublisher.tryPublish(event);
     }
 

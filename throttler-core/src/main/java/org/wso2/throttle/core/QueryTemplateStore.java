@@ -22,20 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class QueryTemplateStore {
-
-//    private static String eligibilityQueryTemplate = "" +
-//            "FROM RequestStream\n" +
-//            "SELECT \"$LEVEL_$TIER\" AS rule, messageID, ($LEVEL_tier==\"$TIER\") AS isEligible, $LEVEL_key AS key \n" +
-//            "INSERT INTO EligibilityStream;";
-//
-//    public static String constructEligibilityQuery(String level, String tier) {
-//        StringBuilder builder = new StringBuilder();
-//        String query = eligibilityQueryTemplate.replaceAll("$LEVEL", level.toLowerCase());
-//        query = query.replaceAll("$TIER", tier.toLowerCase());
-//        builder.append(query);
-//        builder.append("\n");
-//        return builder.toString();
-//    }
     private List<String> queries;
 
     //private constructor
@@ -48,7 +34,8 @@ public class QueryTemplateStore {
     }
 
     public String loadThrottlingAttributes() {
-        return "messageID string, app_key string, api_key string, resource_key string, app_tier string, api_tier string, resource_tier string, verb string, ip string";
+        return "messageID string, app_key string, api_key string, resource_key string, app_tier string, " +
+                "api_tier string, resource_tier string, verb string, ip long";
     }
 
     public List<String> loadThrottlingEligibilityQueries() {
