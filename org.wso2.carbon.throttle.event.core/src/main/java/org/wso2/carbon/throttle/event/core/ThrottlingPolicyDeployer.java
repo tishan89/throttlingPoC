@@ -28,7 +28,7 @@ import org.wso2.carbon.throttle.event.core.util.ThrottleHelper;
 
 public class ThrottlingPolicyDeployer extends AbstractDeployer{
 
-    private static Log log = LogFactory.getLog(ThrottlingPolicyDeployer.class);
+    private static final Log log = LogFactory.getLog(ThrottlingPolicyDeployer.class);
 
     @Override
     public void init(ConfigurationContext configurationContext) {

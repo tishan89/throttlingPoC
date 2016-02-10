@@ -48,6 +48,10 @@ import java.util.List;
 public class ThrottleHelper {
     private static final Logger log = Logger.getLogger(ThrottleHelper.class);
 
+    private ThrottleHelper(){
+        //avoids initialization
+    }
+
     /**
      * Reads throttling policy config file and populate a {@link org.wso2.carbon.throttle.event.core.Policy} objects.
      * @return {@link org.wso2.carbon.throttle.event.core.Policy} object
@@ -190,17 +194,22 @@ public class ThrottleHelper {
             }
             List<CarbonDataSource> dataSources = ThrottleServiceValueHolder.getDataSourceService().getAllDataSources();
             for (CarbonDataSource cds : dataSources) {
-                try {
-                    if (cds.getDSObject() instanceof DataSource) {
-                        siddhiManager.setDataSource(cds.getDSMInfo().getName(), (DataSource) cds.getDSObject());
-                    }
-                } catch (Exception e) {
-                    log.error("Unable to add the datasource" + cds.getDSMInfo().getName(), e);
-                }
+                setDatasources(siddhiManager, cds);
             }
         } catch (DataSourceException e) {
             log.error("Unable to populate the data sources in Siddhi engine.", e);
         }
     }
+
+    private static void setDatasources(SiddhiManager siddhiManager, CarbonDataSource carbonDataSource){
+        try {
+            if (carbonDataSource.getDSObject() instanceof DataSource) {
+                siddhiManager.setDataSource(carbonDataSource.getDSMInfo().getName(), (DataSource) carbonDataSource.getDSObject());
+            }
+        } catch (Exception e) {
+            log.error("Unable to add the datasource" + carbonDataSource.getDSMInfo().getName(), e);
+        }
+    }
+
 
 }

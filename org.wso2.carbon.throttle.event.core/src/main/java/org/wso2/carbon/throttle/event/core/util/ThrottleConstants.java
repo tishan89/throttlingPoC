@@ -20,6 +20,10 @@ package org.wso2.carbon.throttle.event.core.util;
 
 public class ThrottleConstants {
 
+    private ThrottleConstants(){
+        //avoids initialization
+    }
+
     public static final String THROTTLE_POLICY_XML = "throttle-policy.xml";
     public static final String POLICY_ELEMENT = "policy";
     public static final String NAME = "name";
