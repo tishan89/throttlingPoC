@@ -15,17 +15,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.wso2.carbon.throttle.event.core.internal;
+package org.wso2.carbon.throttle.event.core.internal.ds;
 
 import org.wso2.carbon.ndatasource.core.DataSourceService;
+import org.wso2.carbon.throttle.event.core.internal.CarbonThrottlerService;
 
 /**
  * Value holder class for OSGi references
  */
 public final class ThrottleServiceValueHolder {
     private static DataSourceService dataSourceService;
+    private static CarbonThrottlerService throttlerService;
 
     private ThrottleServiceValueHolder() {
+    }
+
+    public static void registerThrottlerService(CarbonThrottlerService service){
+        throttlerService = service;
+    }
+
+    public static CarbonThrottlerService getThrottlerService(){
+        return throttlerService;
     }
 
     public static DataSourceService getDataSourceService() {

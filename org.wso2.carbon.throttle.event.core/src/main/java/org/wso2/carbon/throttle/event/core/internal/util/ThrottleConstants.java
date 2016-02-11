@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.carbon.throttle.event.core.util;
+package org.wso2.carbon.throttle.event.core.internal.util;
 
 public class ThrottleConstants {
 

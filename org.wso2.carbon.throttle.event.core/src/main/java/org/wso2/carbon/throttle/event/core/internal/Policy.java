@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.carbon.throttle.event.core;
+package org.wso2.carbon.throttle.event.core.internal;
 
 /**
  * Container object for Throttling Policy.

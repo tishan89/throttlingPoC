@@ -16,10 +16,10 @@
  * under the License.
  */
 
-package org.wso2.carbon.throttle.event.core;
+package org.wso2.carbon.throttle.event.core.internal;
 
 public class GlobalCEPClient {
-
+//todo We need this class when wiring up global cep
 //    private AuthenticationAdminStub authenticationAdminStub = null;
 //    private String host = "localhost";           //The host on which CEP Server runs
 //    private String port = "9453";                //CEP Server Management-Port

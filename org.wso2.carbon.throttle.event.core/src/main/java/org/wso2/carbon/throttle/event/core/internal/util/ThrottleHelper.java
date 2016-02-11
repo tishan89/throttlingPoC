@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.carbon.throttle.event.core.util;
+package org.wso2.carbon.throttle.event.core.internal.util;
 
 import org.apache.axiom.om.OMElement;
 import org.apache.axiom.om.impl.builder.StAXOMBuilder;
@@ -26,10 +26,10 @@ import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.ndatasource.common.DataSourceException;
 import org.wso2.carbon.ndatasource.core.CarbonDataSource;
 import org.wso2.carbon.ndatasource.core.DataSourceManager;
-import org.wso2.carbon.throttle.event.core.CEPConfig;
-import org.wso2.carbon.throttle.event.core.Policy;
 import org.wso2.carbon.throttle.event.core.exception.ThrottleConfigurationException;
-import org.wso2.carbon.throttle.event.core.internal.ThrottleServiceValueHolder;
+import org.wso2.carbon.throttle.event.core.internal.CEPConfig;
+import org.wso2.carbon.throttle.event.core.internal.Policy;
+import org.wso2.carbon.throttle.event.core.internal.ds.ThrottleServiceValueHolder;
 import org.wso2.carbon.utils.ServerConstants;
 import org.wso2.siddhi.core.SiddhiManager;
 
@@ -53,8 +53,8 @@ public class ThrottleHelper {
     }
 
     /**
-     * Reads throttling policy config file and populate a {@link org.wso2.carbon.throttle.event.core.Policy} objects.
-     * @return {@link org.wso2.carbon.throttle.event.core.Policy} object
+     * Reads throttling policy config file and populate a {@link org.wso2.carbon.throttle.event.core.internal.Policy} objects.
+     * @return {@link org.wso2.carbon.throttle.event.core.internal.Policy} object
      * @throws ThrottleConfigurationException
      */
     public static Policy loadThrottlingPolicies(DeploymentFileData deploymentFileData) throws ThrottleConfigurationException {

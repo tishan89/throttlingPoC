@@ -116,7 +116,7 @@
                         <Export-Package>
                             !org.wso2.carbon.throttle.event.core.internal,
                             !org.wso2.carbon.throttle.event.core.internal.*,
-                            org.wso2.throttle.*
+                            org.wso2.carbon.throttle.event.*
                         </Export-Package>
                         <Import-Package>
                             org.wso2.carbon.databridge.core;version="[5.0.6, 5.0.7)",

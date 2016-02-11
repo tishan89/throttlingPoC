@@ -18,7 +18,7 @@
         <deployer>
             <directory>throttlingconfigs</directory>
             <extension>xml</extension>
-            <class>org.wso2.carbon.throttle.event.core.ThrottlingPolicyDeployer</class>
+            <class>org.wso2.carbon.throttle.event.core.internal.util.ThrottlingPolicyDeployer</class>
         </deployer>
     </deployers>
 

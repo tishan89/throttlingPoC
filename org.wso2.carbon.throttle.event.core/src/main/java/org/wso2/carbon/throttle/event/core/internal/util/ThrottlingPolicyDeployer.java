@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.wso2.carbon.throttle.event.core;
+package org.wso2.carbon.throttle.event.core.internal.util;
 
 import org.apache.axis2.context.ConfigurationContext;
 import org.apache.axis2.deployment.AbstractDeployer;
@@ -24,7 +24,8 @@ import org.apache.axis2.deployment.repository.util.DeploymentFileData;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.throttle.event.core.exception.ThrottleConfigurationException;
-import org.wso2.carbon.throttle.event.core.util.ThrottleHelper;
+import org.wso2.carbon.throttle.event.core.internal.Policy;
+import org.wso2.carbon.throttle.event.core.internal.ds.ThrottleServiceValueHolder;
 
 public class ThrottlingPolicyDeployer extends AbstractDeployer{
 
@@ -57,13 +58,13 @@ public class ThrottlingPolicyDeployer extends AbstractDeployer{
         //During deployment it is validated that fileName == policyName
         String[] splitResults = fileName.split("/");
         String name = splitResults[splitResults.length-1].split("\\.")[0];
-        Throttler.getInstance().undeployLocalCEPRules(name);
+        ThrottleServiceValueHolder.getThrottlerService().undeployLocalCEPRules(name);
         log.info("Successfully undeployed throttle policy named " + name);
     }
 
     private void processDeploy(DeploymentFileData deploymentFileData) throws ThrottleConfigurationException {
         Policy policy = ThrottleHelper.loadThrottlingPolicies(deploymentFileData);
-        Throttler.getInstance().deployLocalCEPRules(policy);
+        ThrottleServiceValueHolder.getThrottlerService().deployLocalCEPRules(policy);
         log.info("Successfully deployed throttle policy named " + policy.getName());
     }
 

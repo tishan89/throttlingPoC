@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.carbon.throttle.event.core;
+package org.wso2.carbon.throttle.event.core.internal;
 
 import org.apache.log4j.Logger;
 import org.wso2.carbon.databridge.agent.DataPublisher;
@@ -26,8 +26,9 @@ import org.wso2.carbon.databridge.agent.exception.DataEndpointConfigurationExcep
 import org.wso2.carbon.databridge.agent.exception.DataEndpointException;
 import org.wso2.carbon.databridge.commons.exception.TransportException;
 import org.wso2.carbon.databridge.commons.utils.DataBridgeCommonsUtils;
+import org.wso2.carbon.throttle.event.core.ThrottlerService;
 import org.wso2.carbon.throttle.event.core.exception.ThrottleConfigurationException;
-import org.wso2.carbon.throttle.event.core.util.ThrottleHelper;
+import org.wso2.carbon.throttle.event.core.internal.util.ThrottleHelper;
 import org.wso2.siddhi.core.ExecutionPlanRuntime;
 import org.wso2.siddhi.core.SiddhiManager;
 import org.wso2.siddhi.core.event.Event;
@@ -44,18 +45,16 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 1. Get an instance
  * 2. Start
  * 3. Add rules
- * 4. Invoke isThrottled with {@link Throttler} object
+ * 4. Invoke isThrottled with {@link CarbonThrottlerService} object
  */
-public class Throttler {
-    private static final Logger log = Logger.getLogger(Throttler.class);
-
-    private static Throttler throttler;
+public class CarbonThrottlerService implements ThrottlerService {
+    private static final Logger log = Logger.getLogger(CarbonThrottlerService.class);
 
     private SiddhiManager siddhiManager;
     private InputHandler eligibilityStreamInputHandler;
-    private Map<String,InputHandler> requestStreamInputHandlerMap = new ConcurrentHashMap<String, InputHandler>();
-    private Map<String,ExecutionPlanRuntime> ruleRuntimeMap = new ConcurrentHashMap<String, ExecutionPlanRuntime>();
-    private static Map<String, ResultContainer> resultMap = new ConcurrentHashMap<String, ResultContainer>();
+    private Map<String,InputHandler> requestStreamInputHandlerMap;
+    private Map<String,ExecutionPlanRuntime> ruleRuntimeMap;
+    private Map<String, ResultContainer> resultMap;
 
     private AtomicInteger ruleCount = new AtomicInteger(0);
 
@@ -66,15 +65,11 @@ public class Throttler {
 
     private CEPConfig cepConfig;
 
-    private Throttler() {
-    }
-
-    public static synchronized Throttler getInstance() {
-        if (throttler == null) {
-            throttler = new Throttler();
-            throttler.start();
-        }
-        return throttler;
+    public CarbonThrottlerService() {
+        requestStreamInputHandlerMap = new ConcurrentHashMap<String, InputHandler>();
+        ruleRuntimeMap = new ConcurrentHashMap<String, ExecutionPlanRuntime>();
+        resultMap = new ConcurrentHashMap<String, ResultContainer>();
+        this.start();
     }
 
     /**
@@ -145,7 +140,7 @@ public class Throttler {
      * @param policy
      * @throws ThrottleConfigurationException
      */
-    protected void deployLocalCEPRules(Policy policy) throws ThrottleConfigurationException {
+    public void deployLocalCEPRules(Policy policy) throws ThrottleConfigurationException {
         String name = policy.getName();
         StringBuilder eligibilityQueriesBuilder = new StringBuilder();
         eligibilityQueriesBuilder.append("define stream RequestStream (" + QueryTemplateStore.getInstance()
@@ -186,7 +181,7 @@ public class Throttler {
      * Undeploy the throttling policy with given name if already deployed.
      * @param policyName
      */
-    protected void undeployLocalCEPRules(String policyName){
+    public void undeployLocalCEPRules(String policyName){
         ExecutionPlanRuntime ruleRuntime = ruleRuntimeMap.get(policyName);
         if(ruleRuntime != null){
             ruleCount.decrementAndGet();
